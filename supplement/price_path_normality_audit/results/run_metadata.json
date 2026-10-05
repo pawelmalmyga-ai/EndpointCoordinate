@@ -1,0 +1,55 @@
+{
+  "script_version": "1.0.0",
+  "seed": 20260925,
+  "observations_per_law_sigma": 3000000,
+  "burn_in": 12064,
+  "blocks": 192,
+  "representative_per_coordinate_n": 2500,
+  "preview_per_coordinate_n": 50,
+  "initial_price": 10000.0,
+  "lookbacks": [
+    2,
+    3,
+    5,
+    8,
+    13,
+    21,
+    35,
+    55,
+    89,
+    144,
+    233,
+    377
+  ],
+  "sigmas": [
+    0.005,
+    0.01,
+    0.02,
+    0.04,
+    0.08
+  ],
+  "laws": [
+    "Gaussian",
+    "Laplace",
+    "Student-t4",
+    "Student-t5",
+    "Student-t6",
+    "Student-t8"
+  ],
+  "coordinates": [
+    "price",
+    "log_price"
+  ],
+  "normalizers": [
+    "asymptotic",
+    "corrected",
+    "corrected_centered",
+    "oracle"
+  ],
+  "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "numpy": "2.3.5",
+  "pandas": "2.2.3",
+  "scipy": "1.17.0",
+  "matplotlib": "3.10.8"
+}

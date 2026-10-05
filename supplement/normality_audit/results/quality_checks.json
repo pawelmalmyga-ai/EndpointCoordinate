@@ -1,0 +1,12 @@
+{
+  "status": "PASS",
+  "expected_summary_rows": 216,
+  "actual_summary_rows": 216,
+  "duplicate_summary_keys": 0,
+  "nonfinite_summary_values": 0,
+  "max_variance_identity_abs_error": 1.3322676295501878e-15,
+  "representative_rows": 1440000,
+  "max_abs_split_half_z_score": 2.8177079070639244,
+  "split_half_rows_with_abs_z_above_3": 0,
+  "note": "The split-half z scores are diagnostics, not independent hypothesis tests; hundreds of correlated comparisons are reported without multiplicity adjustment."
+}

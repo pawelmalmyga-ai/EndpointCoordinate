@@ -1,0 +1,1404 @@
+\documentclass[11pt]{article}
+\usepackage[a4paper,margin=22mm]{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools,booktabs,array,longtable,microtype,float}
+\usepackage{xurl}
+\usepackage{hyperref}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{enumitem}
+\setlist{nosep}
+\hypersetup{
+  colorlinks=true,
+  linkcolor=black,
+  citecolor=black,
+  urlcolor=blue,
+  pdftitle={Endpoint Coordinates and Wilder's Log-Odds RSI},
+  pdfauthor={Paweł Małmyga},
+  pdfsubject={Exact geometry, effective length, and finite-horizon normalization of Wilder's log-odds RSI},
+  pdfkeywords={RSI, log odds, exponential smoothing, effective sample size, Berry--Esseen, Lean 4}
+}
+
+\newtheorem{proposition}{Proposition}
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}{Lemma}
+\newtheorem{corollary}{Corollary}
+\newtheorem{remark}{Remark}
+\newcommand{\E}{\mathbb E}
+\newcommand{\Var}{\operatorname{Var}}
+\newcommand{\Prob}{\mathbb P}
+\newcommand{\atanh}{\operatorname{atanh}}
+\newcommand{\logit}{\operatorname{logit}}
+\newcommand{\cum}{\operatorname{cum}}
+
+\title{Endpoint Coordinates and Wilder's Log-Odds RSI\\
+\large Exact Geometry, Effective Length, and Finite-Horizon Normalization}
+\author{Pawe{\l} Ma{\l}myga\\\small Independent researcher}
+\date{September 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+This paper develops an exponentially weighted endpoint coordinate for a time
+series and identifies Wilder's Relative Strength Index (RSI) as an affine
+representation of that coordinate.  With a recursive mean $M_t$, signed
+increment smoother $S_t$, and absolute-increment smoother $A_t$, all using
+gain $\alpha$, the matched finite-path identity is
+\[
+X_t-M_t=\frac{1-\alpha}{\alpha}S_t,
+\qquad |S_t|\le A_t.
+\]
+For Wilder gain $\alpha=1/n$, the normalized endpoint displacement is therefore
+bounded by $n-1$.  Writing $F_t=S_t/A_t$ gives the exact chain
+\[
+\frac{RSI_t}{100}=\frac{1+F_t}{2},
+\qquad
+L_t=\logit(RSI_t/100)=2\atanh(F_t).
+\]
+These identities are distribution-free.  The exponential kernel has exact
+squared energy $1/(2n-1)$ and exact Kish effective length $2n-1$.  Under
+stationary centered i.i.d. increments with variance $\sigma^2<\infty$ and
+$m_1=\E|\varepsilon|>0$, the full log-odds coordinate satisfies
+\[
+\frac{\sqrt{2n-1}\,m_1}{2\sigma}L_t^{(n)}\Rightarrow N(0,1).
+\]
+Equivalently, $\sqrt n L_t^{(n)}/C_F\Rightarrow N(0,1)$ with
+$C_F=\sqrt2\,\sigma/m_1$.  Under a finite third absolute moment, an exact
+event reduction yields a Berry--Esseen bound of order $n^{-1/2}$ for the full
+nonlinear log ratio.  Under stronger symmetry and light-tail assumptions, its
+variance admits the finite-horizon expansion
+\[
+\Var(L_n)=v_1\alpha+v_2\alpha^2+v_3\alpha^3+v_4\alpha^4+O(\alpha^5),\qquad \alpha=1/n,
+\]
+where $v_1,\ldots,v_4$ are explicit functions of normalized absolute moments.
+Series inversion yields a law-specific variance-normalizing length
+\[
+g_F^*(n)=\frac{C_F^2}{\Var(L_n)}
+=n-K_F+\frac{A_F}{n}+\frac{B_F}{n^2}+O(n^{-3}).
+\]
+For Laplace increments this gives
+$g_L^*(n)=n-4/3+5/(18n)+5/(27n^2)+O(n^{-3})$; Gaussian increments produce
+different, $\pi$-dependent coefficients.  A companion Lean 4 development
+checks the exact pathwise identities, the Wilder recursion bridge, kernel
+energy, local log-odds transfer, and a finite-variance limit theorem for
+normalized finite linear rows.  The stationary nonlinear limit,
+Berry--Esseen bound, and fourth-order analytic remainder are proved by
+conventional arguments; the coefficient algebra is independently reproduced
+by a pinned SymPy calculation.  No trading rule or predictive claim is made.
+\end{abstract}
+
+\noindent\textbf{Keywords:} endpoint coordinate, RSI, log odds, Wilder
+smoothing, effective sample size, finite-horizon normalization, asymptotic
+expansion, Berry--Esseen, Lean 4.
+
+\section{Purpose and scope}
+Wilder's RSI is conventionally introduced as a bounded oscillator
+\cite{wilder}. The starting point here is different: the bounded scale is
+treated as a representation of two exponentially smoothed directional masses.
+Once that representation is written explicitly, a natural unbounded
+coordinate is the log ratio of those masses.
+
+A prior practitioner paper proposed an empirical cross-lookback scaling and explicitly left its formal derivation as an open problem \cite{malmyga2025}. The present paper addresses only that mathematical problem. It does not attempt to justify any particular market threshold, adaptive zone, or trading interpretation.
+
+\subsection*{Input scale and market interpretation}
+The process $X$ is the input series to which Wilder smoothing is applied.  The
+deterministic identities below are pathwise and therefore apply whether $X$ is
+a price, a log price, or another real-valued series.  The probabilistic results
+have a narrower interpretation: their assumptions concern the increments
+$\varepsilon_t=X_t-X_{t-1}$ of the chosen input.  If $X_t=\log P_t$, then
+$\varepsilon_t$ is a log return and the Gaussian and Laplace formulas describe
+RSI computed from log prices.  If $X_t=P_t$, they instead describe an additive
+price-increment benchmark.
+
+This distinction matters under the multiplicative price model
+\begin{equation}
+P_t=P_{t-1}e^{r_t},
+\qquad
+\Delta P_t=P_{t-1}(e^{r_t}-1).
+\end{equation}
+Even when the log returns $r_t$ are i.i.d. and symmetric, the arithmetic price
+increments $\Delta P_t$ are state dependent and generally asymmetric.  Thus
+the distribution-specific finite-$n$ coefficients derived here are not exact
+theorems for classical price RSI under that model.  A separate numerical
+supplement, \path{supplement/price_path_normality_audit/}, measures the
+small-return robustness of the same normalizers after symmetric log returns
+are mapped into positive price paths.  No geometric-Brownian-motion theorem or
+empirical market model is claimed in this paper.
+
+The logical and formal-verification status of the main results is summarized in
+Table~\ref{tab:status}.  ``Lean-checked'' means that the corresponding theorem
+is accepted by the Lean kernel under assumptions visible in its type.  It does
+not mean that those assumptions have been established for financial data.
+
+\begin{table}[htbp]
+\centering
+\caption{Status and assumptions of the principal results.}
+\label{tab:status}
+\scriptsize
+\begin{tabular}{>{\raggedright\arraybackslash}p{0.24\textwidth}>{\raggedright\arraybackslash}p{0.17\textwidth}>{\raggedright\arraybackslash}p{0.20\textwidth}>{\raggedright\arraybackslash}p{0.27\textwidth}}
+\toprule
+Result & Mathematical status & Formal status & Main assumptions \\
+\midrule
+Endpoint, classical Wilder RSI, and log-odds identities & exact & Lean-checked & matched gain and initialization; positivity for finite log odds \\
+Kernel energy and effective length & exact & Lean-checked & $n>1$ \\
+Finite weighted linear-row CLT & theorem & Lean-checked & i.i.d., centered, finite variance; vanishing omitted squared-weight mass \\
+Stationary nonlinear log-odds limit & theorem & conventional proof; Lean-checked components & i.i.d., centered, finite variance; stationary infinite past \\
+Berry--Esseen approximation & theorem & conventional proof & above plus $\E|\varepsilon|^3<\infty$ \\
+Variance expansion through $\alpha^4$ & theorem & conventional proof & symmetry, no atom at zero, exponential and logarithmic moments \\
+Laplace/Gaussian finite-$n$ coefficients & corollaries & symbolically reproduced; not formalized as a Lean variance theorem & corresponding parametric law \\
+No universal constant shift $n-c$ & corollary & conventional proof & two covered laws with distinct $K_F$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Directional masses and the exact log-odds coordinate}
+Let
+\begin{equation}
+X_t=X_{t-1}+\varepsilon_t,
+\end{equation}
+and for integer $n\ge2$ define
+\begin{equation}
+\alpha_n=\frac1n,\qquad \lambda_n=1-\frac1n.
+\end{equation}
+Write positive and negative increment parts as
+\begin{equation}
+g_t=\max(\varepsilon_t,0),\qquad \ell_t=\max(-\varepsilon_t,0),
+\end{equation}
+and define Wilder smoothers
+\begin{equation}
+U_t=\lambda_nU_{t-1}+\alpha_ng_t,
+\qquad
+D_t=\lambda_nD_{t-1}+\alpha_n\ell_t.
+\end{equation}
+Set
+\begin{equation}
+A_t=U_t+D_t,\qquad S_t=U_t-D_t,
+\end{equation}
+and, whenever $A_t>0$,
+\begin{equation}
+F_t=\frac{S_t}{A_t}=\frac{U_t-D_t}{U_t+D_t}\in[-1,1].
+\end{equation}
+Then classical RSI may be written as
+\begin{equation}
+\frac{RSI_t}{100}=\frac{U_t}{U_t+D_t}=\frac{1+F_t}{2}.
+\end{equation}
+The equalities $S_t=U_t-D_t$ and $A_t=U_t+D_t$ are preserved step by step by
+the same Wilder recursion.  Thus the directional masses used here are the
+classically smoothed up/down increments themselves, not masses introduced only
+by algebraically reconstructing a given pair $(S_t,A_t)$.
+
+\begin{proposition}[Exact log-odds identity]
+If $U_t>0$ and $D_t>0$, then
+\begin{equation}
+L_t:=\log\frac{U_t}{D_t}
+=\log\frac{1+F_t}{1-F_t}
+=2\atanh(F_t)
+=\logit\!\left(\frac{RSI_t}{100}\right).
+\end{equation}
+\end{proposition}
+
+\begin{proof}
+From $F=(U-D)/(U+D)$,
+\[
+1+F=\frac{2U}{U+D},\qquad 1-F=\frac{2D}{U+D}.
+\]
+Their ratio is $U/D$. The remaining identities are definitions of $\atanh$ and $\logit$.
+\end{proof}
+
+At $F=\pm1$, $L$ takes the extended-real values $\pm\infty$. No distributional statement follows from Proposition 1 alone.
+
+\section{Exact endpoint geometry}
+Define the recursive mean using the same Wilder gain,
+\begin{equation}
+M_t=\lambda_nM_{t-1}+\alpha_nX_t.
+\end{equation}
+The signed smoother obeys
+\begin{equation}
+S_t=\lambda_nS_{t-1}+\alpha_n\varepsilon_t.
+\end{equation}
+
+\begin{proposition}[Endpoint displacement identity]
+If the initialization satisfies
+\begin{equation}
+X_0-M_0=(n-1)S_0,
+\end{equation}
+then for every $t\ge0$,
+\begin{equation}
+\boxed{X_t-M_t=(n-1)S_t.}
+\end{equation}
+\end{proposition}
+
+\begin{proof}
+Since $X_t=X_{t-1}+\varepsilon_t$,
+\begin{align*}
+X_t-M_t
+&=X_{t-1}+\varepsilon_t-\lambda_nM_{t-1}-\alpha_nX_t\\
+&=\lambda_n(X_{t-1}-M_{t-1})+\lambda_n\varepsilon_t.
+\end{align*}
+Using the induction hypothesis and $(n-1)\alpha_n=\lambda_n$,
+\[
+X_t-M_t=(n-1)(\lambda_nS_{t-1}+\alpha_n\varepsilon_t)=(n-1)S_t.
+\]
+\end{proof}
+
+Consequently, with
+\begin{equation}
+B_{1,t}=\frac{X_t-M_t}{A_t},
+\end{equation}
+we have
+\begin{equation}
+B_{1,t}=(n-1)F_t
+\end{equation}
+and therefore
+\begin{equation}
+\boxed{|B_{1,t}|\le n-1.}
+\end{equation}
+This is a deterministic support bound arising from first-absolute-moment geometry.
+
+For arbitrary initialization, define
+\begin{equation}
+E_t=(X_t-M_t)-(n-1)S_t.
+\end{equation}
+Direct substitution gives
+\begin{equation}
+E_t=\lambda_nE_{t-1}=\lambda_n^tE_0,
+\end{equation}
+so the identity error decays geometrically.
+
+\section{Exact exponential-kernel geometry}
+For a generic gain $\alpha\in(0,1)$, define the infinite exponential kernel
+\begin{equation}
+w_j=\alpha(1-\alpha)^j,\qquad j\ge0.
+\end{equation}
+
+\begin{proposition}[Kernel mass, energy, and effective length]
+The kernel satisfies
+\begin{equation}
+\sum_{j\ge0}w_j=1,
+\qquad
+\sum_{j\ge0}w_j^2=\frac{\alpha}{2-\alpha}.
+\end{equation}
+Consequently its Kish effective length is
+\begin{equation}
+N_{\mathrm{eff}}(\alpha)
+:=\frac{1}{\sum_{j\ge0}w_j^2}
+=\frac{2-\alpha}{\alpha}.
+\end{equation}
+For Wilder gain $\alpha=1/n$,
+\begin{equation}
+\boxed{
+\sum_{j\ge0}w_{n,j}^2=\frac{1}{2n-1},
+\qquad
+N_{\mathrm{eff}}(n)=2n-1.}
+\end{equation}
+\end{proposition}
+
+\begin{proof}
+Both statements are geometric-series identities:
+\begin{align}
+\sum_{j\ge0}\alpha(1-\alpha)^j
+&=\frac{\alpha}{1-(1-\alpha)}=1,\\
+\sum_{j\ge0}\alpha^2(1-\alpha)^{2j}
+&=\frac{\alpha^2}{1-(1-\alpha)^2}
+=\frac{\alpha}{2-\alpha}.
+\end{align}
+The effective-length formulas follow by inversion.
+\end{proof}
+
+If $\varepsilon_j$ are independent, centered, and have variance $\sigma^2$,
+then the corresponding linear signed smoother has exact variance
+\begin{equation}
+\Var\!\left(\sum_{j\ge0}w_{n,j}\varepsilon_j\right)
+=\frac{\sigma^2}{2n-1}.
+\end{equation}
+The number $2n-1$ is therefore the exact inverse-energy length of the
+\emph{linear} exponential smoother.  It is not an exact finite-$n$ variance
+normalizer for the nonlinear ratio $F=S/A$ or for $L=2\atanh(F)$.  Randomness
+of the denominator and curvature of the log-odds map generate the
+law-dependent corrections studied later.
+
+\section{Stationary infinite-past construction}
+Let $\{\varepsilon_t\}_{t\in\mathbb Z}$ be i.i.d. with
+\begin{equation}
+\E\varepsilon_t=0,\qquad 0<\sigma^2=\E\varepsilon_t^2<\infty,
+\qquad m_1=\E|\varepsilon_t|>0.
+\end{equation}
+For each $n$, define stationary smoothers
+\begin{align}
+S_t^{(n)}&=\sum_{j=0}^{\infty}w_{n,j}\varepsilon_{t-j},\\
+A_t^{(n)}&=\sum_{j=0}^{\infty}w_{n,j}|\varepsilon_{t-j}|,
+\end{align}
+where
+\begin{equation}
+w_{n,j}=\alpha_n\lambda_n^j.
+\end{equation}
+Then
+\begin{equation}
+F_t^{(n)}=\frac{S_t^{(n)}}{A_t^{(n)}},\qquad
+L_t^{(n)}=2\atanh(F_t^{(n)}).
+\end{equation}
+For any nondegenerate zero-mean law, positive and negative increments both occur with positive probability; under the infinite-past construction $U_t,D_t>0$ almost surely.
+
+\section{Large-lookback limit}
+\begin{theorem}[Asymptotic log-odds coordinate]
+Under the stationary i.i.d. assumptions above,
+\begin{equation}
+\boxed{
+\frac{\sqrt{2n-1}\,m_1}{2\sigma}L_t^{(n)}
+\Rightarrow N(0,1).}
+\end{equation}
+Equivalently, on the conventional $\sqrt n$ scale, define
+\begin{equation}
+\boxed{C_F=\frac{\sqrt2\,\sigma}{m_1}=\frac{\sqrt2\,\sigma}{\E|\varepsilon|}},
+\end{equation}
+so that
+\begin{equation}
+\frac{\sqrt n}{C_F}L_t^{(n)}\Rightarrow N(0,1).
+\end{equation}
+\end{theorem}
+
+\begin{proof}
+The exact squared-weight sum is
+\begin{equation}
+\sum_{j\ge0}w_{n,j}^2=\frac1{2n-1}.
+\end{equation}
+Hence
+\begin{equation}
+\Var(S_t^{(n)})=\frac{\sigma^2}{2n-1}.
+\end{equation}
+To justify the triangular-array step without appealing directly to an
+infinite-row theorem, put
+\begin{equation}
+J_n=\lceil n\log n\rceil,
+\qquad
+B_n=\sum_{j=0}^{J_n}w_{n,j}^2,
+\qquad
+b_{n,j}=\frac{w_{n,j}}{\sqrt{B_n}}\quad(0\le j\le J_n).
+\end{equation}
+Then $\sum_{j=0}^{J_n}b_{n,j}^2=1$ and
+\begin{equation}
+\max_{0\le j\le J_n}|b_{n,j}|
+\le \frac{\sqrt{2n-1}}{n\sqrt{1-\lambda_n^{2(J_n+1)}}}
+\longrightarrow0.
+\end{equation}
+For every fixed $\eta>0$, independence and identical distribution give the
+Lindeberg bound
+\begin{align}
+&\sum_{j=0}^{J_n}
+\E\left[
+\left(\frac{b_{n,j}\varepsilon_{t-j}}{\sigma}\right)^2
+\mathbf 1_{\{|b_{n,j}\varepsilon_{t-j}|>\eta\sigma\}}
+\right]\\
+&\hspace{1cm}\le
+\frac1{\sigma^2}
+\E\left[
+\varepsilon^2
+\mathbf 1_{\{|\varepsilon|>\eta\sigma/\max_j|b_{n,j}|\}}
+\right]
+\longrightarrow0,
+\end{align}
+because $\E\varepsilon^2<\infty$.  The finite-row Lindeberg--Feller theorem
+therefore applies.  The omitted tail is negligible on the full standard
+deviation scale, since
+\begin{equation}
+\frac{\sum_{j>J_n}w_{n,j}^2}{\sum_{j\ge0}w_{n,j}^2}
+=\lambda_n^{2(J_n+1)}
+\le \exp\!\left(-\frac{2(J_n+1)}n\right)
+\le n^{-2}.
+\end{equation}
+Also $B_n/\sum_{j\ge0}w_{n,j}^2\to1$.  Lindeberg--Feller and Slutsky hence
+yield
+\begin{equation}
+\frac{\sqrt{2n-1}}{\sigma}S_t^{(n)}\Rightarrow N(0,1).
+\end{equation}
+Also
+\begin{equation}
+\E A_t^{(n)}=m_1,
+\qquad
+\Var(A_t^{(n)})=\frac{\Var(|\varepsilon|)}{2n-1}\to0,
+\end{equation}
+so $A_t^{(n)}\to_p m_1$. Slutsky gives
+\begin{equation}
+\frac{\sqrt{2n-1}\,m_1}{\sigma}F_t^{(n)}
+\Rightarrow N(0,1).
+\end{equation}
+Thus $F_t^{(n)}=O_p(n^{-1/2})$. On every fixed compact subset of $(-1,1)$,
+\begin{equation}
+2\atanh x=2x+O(x^3).
+\end{equation}
+Moreover, for fixed $c\in(0,1)$, Chebyshev's inequality gives the explicit
+split
+\begin{align}
+\Prob(|F_t^{(n)}|>c)
+&\le
+\Prob\!\left(A_t^{(n)}<\frac{m_1}{2}\right)
++\Prob\!\left(|S_t^{(n)}|>\frac{cm_1}{2}\right)\\
+&\le
+\frac{4\Var(|\varepsilon|)}{m_1^2(2n-1)}
++\frac{4\sigma^2}{c^2m_1^2(2n-1)}
+=O(n^{-1}).
+\end{align}
+On $|F_t^{(n)}|\le c$ there is a finite $C_c$ such that
+$|2\atanh F_t^{(n)}-2F_t^{(n)}|\le C_c|F_t^{(n)}|^3$.
+Since $\sqrt nF_t^{(n)}=O_p(1)$, the right-hand side multiplied by $\sqrt n$
+converges to zero in probability; the complement has probability $O(n^{-1})$.
+Therefore
+\begin{equation}
+\sqrt{2n-1}\,[L_t^{(n)}-2F_t^{(n)}]\to_p0,
+\end{equation}
+and the effective-length form follows.  Finally,
+\[
+\frac{\sqrt n}{C_F}
+=\frac{\sqrt{2n-1}\,m_1}{2\sigma}
+\sqrt{\frac{2n}{2n-1}},
+\]
+and the last factor tends to one, proving the equivalent $\sqrt n$ form.
+\end{proof}
+
+\begin{remark}
+The theorem is a distributional limit.  Under only a finite second moment it
+does not, by itself, assert convergence of the variances of the normalized
+log-odds variables; such a conclusion would require an additional uniform
+integrability argument.
+\end{remark}
+
+\section{A quantitative Gaussian approximation}
+The preceding proof uses a ratio approximation. A sharper finite-$n$ statement
+can be obtained from the Berry--Esseen inequality \cite{berry,esseen} without
+approximating the random denominator.
+
+\begin{theorem}[Berry--Esseen bound for the full log ratio]
+Assume in addition that
+\begin{equation}
+\rho_3:=\E|\varepsilon|^3<\infty.
+\end{equation}
+Then there exist finite constants $K,N$, depending only on the innovation law, such that for all $n\ge N$,
+\begin{equation}
+\boxed{
+\sup_{x\in\mathbb R}
+\left|
+\Prob\!\left(\frac{\sqrt n}{C_F}L_t^{(n)}\le x\right)-\Phi(x)
+\right|
+\le\frac{K}{\sqrt n}.}
+\end{equation}
+\end{theorem}
+
+\begin{proof}
+For $h\in\mathbb R$, define
+\begin{equation}
+\xi(h)=g-e^h\ell,
+\end{equation}
+where $g=\max(\varepsilon,0)$ and $\ell=\max(-\varepsilon,0)$. Then
+\begin{equation}
+T_n(h):=U_t-e^hD_t=\sum_{j\ge0}w_{n,j}\xi_{t-j}(h).
+\end{equation}
+Since $U_t,D_t>0$ almost surely,
+\begin{equation}
+\boxed{\{L_t^{(n)}\le h\}=\{T_n(h)\le0\}.}
+\end{equation}
+This reduction is exact.
+
+Because $\E\varepsilon=0$,
+\begin{equation}
+\E g=\E\ell=\frac{m_1}{2},
+\end{equation}
+so
+\begin{equation}
+\mu(h):=\E\xi(h)=\frac{m_1}{2}(1-e^h).
+\end{equation}
+Let
+\begin{equation}
+v(h):=\Var(\xi(h)).
+\end{equation}
+Since $g\ell=0$ pointwise,
+\begin{equation}
+v(h)=\E g^2+e^{2h}\E\ell^2-\mu(h)^2.
+\end{equation}
+Thus $v$ is analytic in $h$, $v(0)=\sigma^2>0$, and both $v$ and
+$v^{-1/2}$ are continuously differentiable on a sufficiently small
+neighborhood of zero. Choose $h_0>0$ small enough that
+\begin{equation}
+ v_*:=\inf_{|h|\le h_0}v(h)>0.
+\end{equation}
+The third absolute moment is uniformly controlled on the same window. Indeed,
+$|\xi(h)|\le e^{h_0}|\varepsilon|$ for $|h|\le h_0$, Jensen's inequality gives
+$|\mu(h)|^3\le \E|\xi(h)|^3$, and $|a-b|^3\le4(|a|^3+|b|^3)$, hence
+\begin{equation}
+\boxed{
+\sup_{|h|\le h_0}\E|\xi(h)-\mu(h)|^3
+\le 8e^{3h_0}\rho_3.}
+\end{equation}
+
+The exact weight sums are
+\begin{equation}
+\sum_{j\ge0}w_j^2=\frac1{2n-1},
+\qquad
+\sum_{j\ge0}w_j^3=\frac1{3n^2-3n+1}.
+\end{equation}
+Consequently the Berry--Esseen Lyapunov ratio is uniformly bounded by
+\begin{align}
+\frac{\E|\xi(h)-\mu(h)|^3\sum_jw_j^3}
+{v(h)^{3/2}(\sum_jw_j^2)^{3/2}}
+&\le
+\frac{8e^{3h_0}\rho_3}{v_*^{3/2}}
+\frac{(2n-1)^{3/2}}{3n^2-3n+1}\\
+&\le \frac{K_{BE}}{\sqrt n},
+\qquad |h|\le h_0,
+\end{align}
+for a finite law-dependent constant $K_{BE}$.
+
+For completeness, the passage from finite to infinite weighted sums can be made quantitative rather than implicit. Put
+\begin{equation}
+J_n=\lceil n\log n\rceil,
+\qquad
+T_{n,J}(h)=\sum_{j=0}^{J_n}w_j\xi_{t-j}(h),
+\qquad
+R_{n,J}(h)=T_n(h)-T_{n,J}(h).
+\end{equation}
+Since $\lambda_n=1-1/n$,
+\begin{align}
+\sum_{j>J_n}w_j^2
+&=\frac{1}{2n-1}\lambda_n^{2(J_n+1)}=O(n^{-3}),\\
+\sum_{j>J_n}w_j^3
+&=\frac{1}{3n^2-3n+1}\lambda_n^{3(J_n+1)}=O(n^{-5}).
+\end{align}
+Therefore, uniformly for $|h|\le h_0$,
+\begin{equation}
+\Var(R_{n,J}(h))=O(n^{-3}),
+\end{equation}
+whereas $\Var(T_n(h)-\mu(h))=v(h)/(2n-1)\asymp n^{-1}$. Thus the omitted tail has normalized variance $O(n^{-2})$.
+
+Write
+\begin{equation}
+\sigma_{n,J}^2=v(h)\sum_{j=0}^{J_n}w_j^2,
+\qquad
+\sigma_n^2=\frac{v(h)}{2n-1}.
+\end{equation}
+Then
+\begin{equation}
+\frac{\sigma_{n,J}^2}{\sigma_n^2}
+=1-\lambda_n^{2(J_n+1)}=1+O(n^{-2}),
+\qquad
+\frac{\sigma_{n,J}}{\sigma_n}=1+O(n^{-2}),
+\end{equation}
+uniformly for $|h|\le h_0$. Apply the Berry--Esseen inequality for independent, not necessarily identically distributed, centered summands (Petrov \cite{petrov1975}) to $T_{n,J}(h)$ with its natural scale $\sigma_{n,J}$. The truncated second- and third-weight sums differ from their infinite counterparts by relative $O(n^{-2})$ and $O(n^{-3})$, respectively, so their Lyapunov ratios differ by a factor $1+O(n^{-2})$. Thus the same $K_{BE}/\sqrt n$ bound holds for the truncated statistic after enlarging the constant. Replacing $\sigma_{n,J}$ by $\sigma_n$ adds only $O(n^{-2})$ to the normal comparison, because $\sup_z|\Phi(cz)-\Phi(z)|=O(|c-1|)$ as $c\to1$. To transfer the bound to $T_n(h)$, use, for any $\eta>0$, the elementary smoothing inequality
+\begin{align}
+\sup_z\left|\Prob\!\left(\frac{S+R}{\sigma_n}\le z\right)
+-\Prob\!\left(\frac{S}{\sigma_n}\le z\right)\right|
+&\le \Prob(|R|>\eta\sigma_n)
+ +\sup_z\Prob(z-\eta< S/\sigma_n\le z+\eta),
+\end{align}
+Taking $S=T_{n,J}(h)-\E T_{n,J}(h)$, $R=R_{n,J}(h)-\E R_{n,J}(h)$, and $\eta=n^{-1/2}$, Chebyshev's inequality and the normalized tail variance $O(n^{-2})$ give an $O(n^{-1})$ first term; the second is $O(n^{-1/2})$ by the Gaussian interval bound plus the finite-sum Berry--Esseen error. Hence, uniformly for $|h|\le h_0$,
+\begin{equation}
+\boxed{
+\sup_z\left|
+\Prob\!\left(
+\frac{T_n(h)-\mu(h)}{\sqrt{v(h)/(2n-1)}}\le z
+\right)-\Phi(z)
+\right|
+\le \frac{K_1}{\sqrt n}.}
+\end{equation}
+
+Now set
+\begin{equation}
+h_n(x)=\frac{C_Fx}{\sqrt n}
+\end{equation}
+and define
+\begin{equation}
+z_n(h)=-\mu(h)\frac{\sqrt{2n-1}}{\sqrt{v(h)}}.
+\end{equation}
+The exact event reduction gives
+\begin{equation}
+\Prob\!\left(\frac{\sqrt n}{C_F}L_t^{(n)}\le x\right)
+=
+\Prob\!\left(
+\frac{T_n(h_n(x))-\mu(h_n(x))}{\sqrt{v(h_n(x))/(2n-1)}}
+\le z_n(h_n(x))
+\right).
+\end{equation}
+For $x\ne0$, put $h=h_n(x)$. Since $x=h\sqrt n/C_F$ and
+$C_F=\sqrt2\,\sigma/m_1$, direct substitution gives the exact ratio
+\begin{equation}
+ r_n(h):=\frac{z_n(h)}{x}
+ =\sqrt{\frac{2n-1}{2n}}
+ \frac{\sigma}{\sqrt{v(h)}}
+ \frac{e^h-1}{h}.
+\end{equation}
+Define
+\begin{equation}
+ q(h)=\frac{\sigma}{\sqrt{v(h)}}\frac{e^h-1}{h},
+ \qquad q(0)=1.
+\end{equation}
+After reducing $h_0$ if necessary, $q$ is continuously differentiable on
+$[-h_0,h_0]$. Let
+\begin{equation}
+ M=\sup_{|h|\le h_0}|q'(h)|<\infty.
+\end{equation}
+Using
+\begin{equation}
+0\le 1-\sqrt{1-\frac1{2n}}\le \frac1{2n},
+\end{equation}
+we obtain, uniformly for $|h|\le h_0$,
+\begin{equation}
+|r_n(h)-1|\le M|h|+\frac1{2n}.
+\end{equation}
+Choose $h_0$ smaller, if needed, and then $N$ larger, so that for all
+$n\ge N$ and $|h|\le h_0$,
+\begin{equation}
+\frac12\le r_n(h)\le\frac32.
+\end{equation}
+Thus $z_n(h_n(x))$ and $x$ have the same sign and
+\begin{equation}
+|z_n(h_n(x))|\ge \frac{|x|}{2}
+\end{equation}
+throughout the central range $|h_n(x)|\le h_0$. Moreover,
+\begin{equation}
+|z_n(h_n(x))-x|
+\le MC_F\frac{x^2}{\sqrt n}+\frac{|x|}{2n}.
+\end{equation}
+The mean-value theorem now gives, for some point between $x$ and
+$z_n(h_n(x))$,
+\begin{align}
+|\Phi(z_n(h_n(x)))-\Phi(x)|
+&\le |z_n(h_n(x))-x|\,\varphi(|x|/2)\\
+&\le\left(MC_F\frac{x^2}{\sqrt n}+\frac{|x|}{2n}\right)
+\varphi(|x|/2).
+\end{align}
+Because
+\begin{equation}
+\sup_{x\in\mathbb R}(1+x^2)e^{-x^2/8}<\infty,
+\end{equation}
+there is a finite $K_2$ such that
+\begin{equation}
+\sup_{|h_n(x)|\le h_0}
+|\Phi(z_n(h_n(x)))-\Phi(x)|\le \frac{K_2}{\sqrt n}.
+\end{equation}
+Combining this with the Berry--Esseen bound gives the desired
+$O(n^{-1/2})$ approximation on the central range.
+
+For completeness, let
+\begin{equation}
+ x_n^*=\frac{h_0\sqrt n}{C_F}.
+\end{equation}
+If $x>x_n^*$, monotonicity implies
+\begin{equation}
+1-F_n(x)\le 1-F_n(x_n^*)
+\le 1-\Phi(x_n^*)+\frac{K_1+K_2}{\sqrt n},
+\end{equation}
+where $F_n$ is the distribution function of $\sqrt n L_t^{(n)}/C_F$.
+Also $1-\Phi(x)\le1-\Phi(x_n^*)$. Since
+$x_n^*=(h_0/C_F)\sqrt n$, the Gaussian tail is $O(e^{-cn})$.
+The analogous argument applies for $x<-x_n^*$. Absorbing this exponentially
+small boundary term into the constant proves the theorem globally.
+\end{proof}
+
+\begin{corollary}[Gaussian and Laplace scale constants]
+For Gaussian increments,
+\begin{equation}
+\boxed{C_G=\sqrt\pi.}
+\end{equation}
+For centered Laplace increments,
+\begin{equation}
+\boxed{C_L=2.}
+\end{equation}
+\end{corollary}
+
+\section{Symmetric finite-horizon variance expansion}
+This section is deliberately narrower than Theorems 1--2. Symmetry is essential to the displayed coefficient formulas. In particular, the expansion below is \emph{not} an asymmetric-law analogue of the earlier Gaussian limit.
+
+Assume henceforth that $\varepsilon$ is symmetric, $\Prob(\varepsilon=0)=0$, and define
+\begin{equation}
+R=\frac{|\varepsilon|}{m_1},\qquad m_k=\E R^k,
+\qquad m_1=1.
+\end{equation}
+Symmetry implies the representation
+\begin{equation}
+\frac{\varepsilon}{m_1}=QR,
+\end{equation}
+where $Q$ is a Rademacher sign independent of $R$.
+
+For a fixed $n$, abbreviate $\alpha=1/n$, $\lambda=1-\alpha$, and $w_j=\alpha\lambda^j$. Define centered weighted sums
+\begin{equation}
+x=\sum_{j\ge0}w_jQ_jR_j,
+\qquad
+y=\sum_{j\ge0}w_j(R_j-1).
+\end{equation}
+Then
+\begin{equation}
+\frac{S}{m_1}=x,\qquad \frac{A}{m_1}=1+y,
+\end{equation}
+so
+\begin{equation}
+F=\frac{x}{1+y},\qquad
+L=2\atanh\!\left(\frac{x}{1+y}\right).
+\end{equation}
+The distribution of $L$ is symmetric, hence $\E L=0$ whenever the expectation exists.
+
+\subsection{Weight sums and joint cumulants}
+For integer $r\ge2$, let
+\begin{equation}
+s_r(\alpha)=\sum_{j\ge0}w_j^r
+=\frac{\alpha^r}{1-(1-\alpha)^r}.
+\end{equation}
+Through order $\alpha^4$,
+\begin{align}
+s_2&=\frac\alpha2+\frac{\alpha^2}{4}+\frac{\alpha^3}{8}+\frac{\alpha^4}{16}+O(\alpha^5),\\
+s_3&=\frac{\alpha^2}{3}+\frac{\alpha^3}{3}+\frac{2\alpha^4}{9}+O(\alpha^5),\\
+s_4&=\frac{\alpha^3}{4}+\frac{3\alpha^4}{8}+O(\alpha^5),\\
+s_5&=\frac{\alpha^4}{5}+O(\alpha^5),\\
+s_r&=O(\alpha^5),\qquad r\ge6.
+\end{align}
+
+Let $q=QR$ and $r=R-1$. For $a,b\ge0$, define the one-observation joint cumulant
+\begin{equation}
+c_{a,b}=\cum(\underbrace{q,\ldots,q}_{a},\underbrace{r,\ldots,r}_{b}).
+\end{equation}
+Every $c_{a,b}$ with odd $a$ vanishes. The nonzero cumulants needed through total order five are listed in Table~\ref{tab:cumulants}.
+
+\begin{table}[htbp]
+\centering
+\caption{One-observation joint cumulants required through $O(\alpha^4)$.}
+\label{tab:cumulants}
+\small
+\begin{tabular}{c p{0.72\textwidth}}
+\toprule
+$(a,b)$ & $c_{a,b}$ \\
+\midrule
+$(2,0)$ & $m_2$ \\
+$(0,2)$ & $m_2-1$ \\
+$(2,1)$ & $m_3-m_2$ \\
+$(0,3)$ & $m_3-3m_2+2$ \\
+$(4,0)$ & $m_4-3m_2^2$ \\
+$(2,2)$ & $m_4-2m_3+2m_2-m_2^2$ \\
+$(0,4)$ & $m_4-4m_3+12m_2-3m_2^2-6$ \\
+$(4,1)$ & $m_5-m_4-6m_2m_3+6m_2^2$ \\
+$(2,3)$ & $m_5-3m_4+6m_3-6m_2+6m_2^2-4m_2m_3$ \\
+$(0,5)$ & $m_5-5m_4+20m_3-60m_2+30m_2^2-10m_2m_3+24$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Because the observations are independent across $j$, cumulants add, giving the exact identity
+\begin{equation}
+\boxed{
+\cum(\underbrace{x,\ldots,x}_{a},\underbrace{y,\ldots,y}_{b})
+=s_{a+b}(\alpha)c_{a,b}.}
+\end{equation}
+
+\subsection{Taylor polynomial for the squared log odds}
+Set
+\begin{equation}
+H(x,y)=\left(\frac L2\right)^2
+=\atanh^2\!\left(\frac{x}{1+y}\right).
+\end{equation}
+Using
+\begin{equation}
+\atanh^2 z=z^2+\frac23z^4+\frac{23}{45}z^6+\frac{44}{105}z^8+O(z^{10}),
+\end{equation}
+and expanding $(1+y)^{-2k}$, the terms of total degree at most eight are
+\begin{align}
+P_8(x,y)={}&x^2-2x^2y+3x^2y^2-4x^2y^3+5x^2y^4-6x^2y^5+7x^2y^6\\
+&+\frac23x^4-\frac83x^4y+\frac{20}{3}x^4y^2-\frac{40}{3}x^4y^3+\frac{70}{3}x^4y^4\\
+&+\frac{23}{45}x^6-\frac{46}{15}x^6y+\frac{161}{15}x^6y^2
++\frac{44}{105}x^8.
+\end{align}
+
+The moment--cumulant formula applied to the cumulants above determines $\E P_8$ exactly through $\alpha^4$. The next lemma records the order bookkeeping used both in the coefficient calculation and in the remainder proof.
+
+\begin{lemma}[Weighted centered-moment order]
+Suppose the required moments exist. For integers $a,b\ge0$ with $d=a+b\ge2$,
+\begin{equation}
+\E[x^ay^b]=O\!\left(\alpha^{\lceil d/2\rceil}\right)
+\end{equation}
+whenever the moment--cumulant expansion is taken to a fixed finite order as $\alpha\downarrow0$.
+\end{lemma}
+
+\begin{proof}
+Both $x$ and $y$ are centered, so singleton cumulants vanish. In the moment--cumulant formula, a partition $\pi$ of $d$ positions therefore contains no singleton blocks. A block of size $r$ contributes a joint cumulant of order $s_r(\alpha)=O(\alpha^{r-1})$. Thus the product associated with $\pi$ has order
+\begin{equation}
+\alpha^{\sum_{B\in\pi}(|B|-1)}=\alpha^{d-|\pi|}.
+\end{equation}
+Since $|\pi|\le\lfloor d/2\rfloor$, the exponent is at least $\lceil d/2\rceil$.
+\end{proof}
+
+\subsection{Remainder control}
+The singularity of $\atanh$ at $\pm1$ prevents an unconditional global Taylor argument. The next lemma localizes the statistic and shows that the complement is negligible at every polynomial order needed below.
+
+\begin{lemma}[Localization and Taylor remainder]
+Assume, in addition to symmetry and $\Prob(\varepsilon=0)=0$, that for $R=|\varepsilon|/m_1$ there exists $\theta>0$ such that
+\begin{equation}
+\E e^{\theta R}<\infty
+\end{equation}
+and
+\begin{equation}
+\E|\log R|^4<\infty.
+\end{equation}
+Then, for some fixed $\delta\in(0,1/3)$ and constants $c,C>0$,
+\begin{equation}
+\Prob(|x|>\delta\ \text{or}\ |y|>\delta)\le Ce^{-c/\alpha}.
+\end{equation}
+Moreover,
+\begin{equation}
+\E\left[H(x,y)-P_8(x,y)\right]=O(\alpha^5).
+\end{equation}
+\end{lemma}
+
+\begin{proof}
+We first make the concentration step explicit. If a centered random variable $Z$
+has a moment generating function in a neighborhood of zero, then there exist
+finite constants $\nu,b>0$ such that
+\begin{equation}
+\E e^{tZ}\le \exp\!\left(\frac{\nu^2t^2}{2}\right),
+\qquad |t|\le b^{-1}.
+\end{equation}
+For a finite deterministic weight sequence $a_0,\ldots,a_J$, independence therefore gives
+\begin{equation}
+\E\exp\!\left(t\sum_{j=0}^J a_jZ_j\right)
+\le \exp\!\left(\frac{\nu^2t^2}{2}\sum_{j=0}^J a_j^2\right),
+\qquad
+|t|\le \frac{1}{b\max_{0\le j\le J}|a_j|}.
+\end{equation}
+The Chernoff argument, optimized over the permitted range of $t$, yields the
+weighted Bernstein bound (a standard sub-exponential concentration estimate; see, e.g., Boucheron, Lugosi, and Massart \cite{boucheron2013})
+\begin{equation}
+\Prob\!\left(\left|\sum_{j=0}^J a_jZ_j\right|\ge u\right)
+\le 2\exp\!\left[-\frac12
+\min\!\left\{\frac{u^2}{\nu^2\sum_{j=0}^J a_j^2},
+\frac{u}{b\max_{0\le j\le J}|a_j|}\right\}\right].
+\end{equation}
+For the geometric Wilder weights, $\sum_jw_j\E|Z_j|<\infty$, so the weighted
+series converges absolutely almost surely. Applying the finite bound to partial
+sums and then letting $J\to\infty$ therefore gives the same inequality with the
+full sums $\sum_j a_j^2$ and $\max_j|a_j|$.
+The assumption $\E e^{\theta R}<\infty$ implies such a local mgf bound for
+both centered variables $Z=QR$ and $Z=R-1$. Indeed, for $|t|\le\theta$ and $Q$ independent Rademacher,
+\begin{equation}
+\E e^{tQR}=\frac12\left(\E e^{tR}+\E e^{-tR}\right)
+\le \frac12\left(\E e^{|t|R}+1\right)<\infty,
+\end{equation}
+while
+\begin{equation}
+\E e^{t(R-1)}=e^{-t}\E e^{tR}
+\end{equation}
+is finite for positive $t$ in a neighborhood of zero, and for negative $t$ it is bounded by $e^{|t|}$ because $R\ge0$. Since both variables are centered, finiteness of the mgf on a two-sided neighborhood of zero implies the displayed local quadratic mgf bound after possibly shrinking that neighborhood. Taking $a_j=w_j$ gives
+\begin{equation}
+\sum_jw_j^2=s_2(\alpha)=\frac{\alpha}{2-\alpha}\le\alpha,
+\qquad
+\max_jw_j=\alpha.
+\end{equation}
+Hence, for every fixed $\delta>0$, possibly with different constants for
+$x$ and $y$,
+\begin{equation}
+\Prob(|x|>\delta)+\Prob(|y|>\delta)
+\le 4\exp\!\left(-\frac{c_\delta}{\alpha}\right)
+\end{equation}
+for all sufficiently small $\alpha$. Renaming constants gives the stated
+$Ce^{-c/\alpha}$ bound.
+Let
+\begin{equation}
+G_\delta=\{|x|\le\delta,\ |y|\le\delta\}
+\end{equation}
+with $\delta<1/3$. On $G_\delta$,
+\begin{equation}
+\left|\frac{x}{1+y}\right|\le\frac{\delta}{1-\delta}<1,
+\end{equation}
+so $H$ is analytic on a compact neighborhood containing $G_\delta$. Its multivariate Taylor expansion through total degree nine may be written as
+\begin{equation}
+H=P_8+P_9+R_{10},
+\end{equation}
+where $P_9$ is homogeneous of total degree nine and
+\begin{equation}
+|R_{10}(x,y)|\le C_\delta(|x|+|y|)^{10}
+\end{equation}
+on $G_\delta$. Lemma 1 gives $\E P_9=O(\alpha^5)$. The same bound holds after restriction to $G_\delta$. More generally, if $P(x,y)$ is any fixed polynomial whose second moment is finite, then
+\begin{equation}
+\E[|P(x,y)|\mathbf 1_{G_\delta^c}]
+\le (\E P(x,y)^2)^{1/2}\Prob(G_\delta^c)^{1/2}
+=O(\alpha^M)
+\end{equation}
+for every fixed $M>0$: its moment factor grows at most polynomially in $\alpha^{-1}$ (and in fact remains bounded for the fixed-degree polynomials used here), whereas $\Prob(G_\delta^c)^{1/2}\le C e^{-c/(2\alpha)}$ dominates every power of $\alpha$. Applying this observation to $P_9$ makes the restriction step explicit. By Rosenthal's inequality \cite{rosenthal1970}, for independent centered variables $Z_j$ and $p=10$,
+\begin{equation}
+\E\left|\sum_j a_jZ_j\right|^{10}
+\le C_{10}\left[
+\left(\sum_j a_j^2\E Z_j^2\right)^5
++\sum_j |a_j|^{10}\E|Z_j|^{10}
+\right].
+\end{equation}
+This inequality is first applied to finite partial sums. Because
+$\sum_j|w_j|^{10}<\infty$, $\sum_jw_j^2<\infty$, and the innovations have a
+finite tenth moment, those partial sums converge in $L^{10}$; passage to the
+infinite sum therefore preserves the displayed bound. For $a_j=w_j$, the
+first term is $O(s_2^5)=O(\alpha^5)$, while
+$\sum_jw_j^{10}=s_{10}(\alpha)=O(\alpha^9)$; the exponential-moment assumption supplies the required finite tenth moments. Hence
+\begin{equation}
+\E|x|^{10}+\E|y|^{10}=O(\alpha^5).
+\end{equation}
+so
+\begin{equation}
+\E[|R_{10}|\mathbf 1_{G_\delta}]=O(\alpha^5).
+\end{equation}
+
+It remains to control $G_\delta^c$. Write the normalized positive directional mass as
+\begin{equation}
+\bar U=\frac{U}{m_1}=\sum_{j\ge0}w_j\mathbf 1_{\{Q_j=+1\}}R_j
+\end{equation}
+and analogously $\bar D$. Let $T_+$ be the first $j\ge0$ with $Q_j=+1$. Then $T_+$ is geometric with parameter $1/2$ and is independent of the corresponding magnitude $R_{T_+}$, while
+\begin{equation}
+\bar U\ge w_{T_+}R_{T_+}.
+\end{equation}
+Hence
+\begin{equation}
+(-\log\bar U)_+
+\le \log(1/\alpha)+T_+[-\log(1-\alpha)]+(-\log R_{T_+})_+.
+\end{equation}
+Since $T_+$ has moments of every order, $-\log(1-\alpha)=O(\alpha)$, and $\E|\log R|^4<\infty$,
+\begin{equation}
+\E[(-\log\bar U)_+^4]=O(\log^4(1/\alpha)).
+\end{equation}
+For the positive logarithmic part, $\log^+z\le z$ and Jensen's inequality give a uniform fourth-moment bound. The same argument applies to $\bar D$. Therefore
+\begin{equation}
+\E|L|^4=O(\log^4(1/\alpha)).
+\end{equation}
+By Cauchy--Schwarz,
+\begin{equation}
+\E[L^2\mathbf 1_{G_\delta^c}]
+\le (\E L^4)^{1/2}\Prob(G_\delta^c)^{1/2}
+=O\!\left(\log^2(1/\alpha)e^{-c/(2\alpha)}\right),
+\end{equation}
+which is $O(\alpha^M)$ for every fixed $M$. In particular it is $O(\alpha^5)$. Since $P_8$ is a fixed polynomial and all polynomial moments of $x$ and $y$ are finite under the exponential-moment assumption, the same Cauchy--Schwarz argument gives $\E[|P_8|\mathbf 1_{G_\delta^c}]=O(\alpha^M)$ for every fixed $M$. Combining the localized Taylor bound and both complement bounds proves the result.
+\end{proof}
+
+\subsection{Variance coefficients}
+\begin{theorem}[Finite-horizon variance expansion under symmetry]
+Under the assumptions of Lemma 2,
+\begin{equation}
+\boxed{
+\Var(L_n)=v_1\alpha+v_2\alpha^2+v_3\alpha^3+v_4\alpha^4+O(\alpha^5),
+\qquad \alpha=1/n,}
+\end{equation}
+where
+\begin{align}
+v_1={}&2m_2,\\
+v_2={}&\frac{15m_2^2+2m_2-8m_3}{3},\\
+v_3={}&\frac{64m_2^3+5m_2^2-64m_2m_3+m_2-2m_3+11m_4}{3},\\
+v_4={}&\frac{1}{90}\Bigl(
+11700m_2^4-17040m_2^2m_3+70m_2^2+224m_2m_3\\
+&\hspace{1.6cm}+4020m_2m_4+18m_2+2400m_3^2-18m_3-99m_4-480m_5
+\Bigr).
+\end{align}
+\end{theorem}
+
+\begin{proof}
+Symmetry gives $\E L=0$, so $\Var(L)=\E L^2=4\E H(x,y)$. By Lemma 2,
+\begin{equation}
+\E H=\E P_8+O(\alpha^5).
+\end{equation}
+Every moment in $\E P_8$ is evaluated by the standard moment--cumulant formula using
+\begin{equation}
+\cum(x^{[a]},y^{[b]})=s_{a+b}(\alpha)c_{a,b},
+\end{equation}
+where $x^{[a]}$ denotes $a$ repeated arguments. Because $s_r=O(\alpha^{r-1})$, blocks of order $r\ge6$ contribute only $O(\alpha^5)$ and may be omitted. Thus only the cumulants in Table~\ref{tab:cumulants} are needed. Substituting their exact values together with the expansions of $s_2,s_3,s_4,s_5$ into $\E P_8$, collecting powers of $\alpha$, and multiplying by four gives the displayed coefficients.
+
+The symbolic operation is finite: it consists only of the moment--cumulant
+partition formula applied to the monomials in $P_8$.  The accompanying
+rational-arithmetic script reproduces this calculation exactly; no numerical
+fitting or simulation enters the coefficient derivation.
+\end{proof}
+
+\begin{remark}[Direct check of the $v_2$ coefficient]
+The second coefficient can be verified without the full partition calculation. Up to $O(\alpha^3)$,
+\begin{equation}
+\left(\frac L2\right)^2
+=x^2-2x^2y+3x^2y^2+\frac23x^4+O_{L^1}(\alpha^3).
+\end{equation}
+The required moments are
+\begin{align}
+\E x^2&=m_2s_2,\\
+\E x^2y&=(m_3-m_2)s_3,\\
+\E x^2y^2&=m_2(m_2-1)s_2^2+O(\alpha^3),\\
+\E x^4&=3m_2^2s_2^2+O(\alpha^3).
+\end{align}
+Using $s_2=\alpha/2+\alpha^2/4+O(\alpha^3)$ and $s_3=\alpha^2/3+O(\alpha^3)$ gives
+\begin{equation}
+\Var(L)=2m_2\alpha+\frac{15m_2^2+2m_2-8m_3}{3}\alpha^2+O(\alpha^3),
+\end{equation}
+independently reproducing $v_1$ and $v_2$.
+\end{remark}
+
+\section{Variance-normalizing length}
+For symmetric laws satisfying Theorem 3, define the exact variance-normalizing factor
+\begin{equation}
+\boxed{g_F^*(n)=\frac{C_F^2}{\Var(L_n)}.}
+\end{equation}
+Since $C_F^2=2m_2=v_1$, the standardized coordinate
+\begin{equation}
+Z_n^*=\frac{\sqrt{g_F^*(n)}}{C_F}L_n
+\end{equation}
+has variance exactly one by construction.
+
+Theorem 3 yields an explicit asymptotic expansion for $g_F^*(n)$.
+
+\begin{corollary}[Series inversion]
+Let
+\begin{equation}
+K_F=\frac{v_2}{v_1},
+\end{equation}
+\begin{equation}
+A_F=K_F^2-\frac{v_3}{v_1},
+\end{equation}
+and
+\begin{equation}
+B_F=-K_F^3+2K_F\frac{v_3}{v_1}-\frac{v_4}{v_1}.
+\end{equation}
+Then
+\begin{equation}
+\boxed{
+g_F^*(n)=n-K_F+\frac{A_F}{n}+\frac{B_F}{n^2}+O(n^{-3}).}
+\end{equation}
+\end{corollary}
+
+\begin{proof}
+Write
+\begin{equation}
+\Var(L_n)=v_1\alpha\left[1+\frac{v_2}{v_1}\alpha+\frac{v_3}{v_1}\alpha^2+\frac{v_4}{v_1}\alpha^3+O(\alpha^4)\right].
+\end{equation}
+Because $C_F^2=v_1$,
+\begin{equation}
+g_F^*(n)=\frac1\alpha\frac1{1+a\alpha+b\alpha^2+c\alpha^3+O(\alpha^4)},
+\end{equation}
+with $a=v_2/v_1$, $b=v_3/v_1$, $c=v_4/v_1$. Using
+\begin{equation}
+(1+u)^{-1}=1-u+u^2-u^3+O(u^4)
+\end{equation}
+and collecting powers gives
+\begin{equation}
+g_F^*(n)=\frac1\alpha-a+(a^2-b)\alpha+(-a^3+2ab-c)\alpha^2+O(\alpha^3),
+\end{equation}
+which is the stated result after $\alpha=1/n$.
+\end{proof}
+
+\begin{corollary}[No universal constant lookback shift]
+Consider two symmetric light-tailed innovation laws $F_1,F_2$ satisfying Theorem 3 and having different first variance-shift coefficients $K_{F_1}\ne K_{F_2}$. For a law-independent constant $c$, define
+\begin{equation}
+Z_{F,c}(n)=\frac{\sqrt{n-c}}{C_F}L_n.
+\end{equation}
+Then
+\begin{equation}
+\Var(Z_{F,c}(n))
+=1+\frac{K_F-c}{n}+O(n^{-2}).
+\end{equation}
+Consequently no single constant $c$ can make
+\begin{equation}
+\Var(Z_{F_i,c}(n))=1+o(n^{-1})
+\end{equation}
+simultaneously for $i=1,2$. More quantitatively,
+\begin{equation}
+\liminf_{n\to\infty} n\max_{i=1,2}
+\left|\Var(Z_{F_i,c}(n))-1\right|
+\ge \frac{|K_{F_1}-K_{F_2}|}{2}.
+\end{equation}
+\end{corollary}
+
+\begin{proof}
+By definition $g_F^*(n)=C_F^2/\Var(L_n)$, so
+\begin{equation}
+\Var(Z_{F,c}(n))=\frac{n-c}{g_F^*(n)}.
+\end{equation}
+Since $g_F^*(n)=n-K_F+O(n^{-1})$, series division gives
+\begin{equation}
+\frac{n-c}{g_F^*(n)}=1+\frac{K_F-c}{n}+O(n^{-2}).
+\end{equation}
+For any real $c$, at least one of $|K_{F_1}-c|$ and $|K_{F_2}-c|$ is at least $|K_{F_1}-K_{F_2}|/2$, proving the bound.
+\end{proof}
+
+\section{Exact special-law corollaries}
+\subsection{Laplace increments}
+For a centered Laplace law, $R=|\varepsilon|/\E|\varepsilon|\sim\operatorname{Exp}(1)$, so
+\begin{equation}
+m_k=k!.
+\end{equation}
+Substitution into Theorem 3 gives
+\begin{equation}
+\boxed{
+\Var(L_n)
+=4\alpha+\frac{16}{3}\alpha^2+6\alpha^3+\frac{52}{9}\alpha^4+O(\alpha^5).}
+\end{equation}
+Since $C_L=2$, the series-inversion corollary gives
+\begin{equation}
+\boxed{
+g_L^*(n)=n-\frac43+\frac{5}{18n}+\frac{5}{27n^2}+O(n^{-3}).}
+\end{equation}
+Equivalently, the variance-normalized coordinate may be written
+\begin{equation}
+Z_{L,n}
+=\frac12\sqrt{n-\frac43+\frac{5}{18n}+\frac{5}{27n^2}+O(n^{-3})}\;L_n.
+\end{equation}
+
+\subsection{Gaussian increments}
+For a centered Gaussian law,
+\begin{equation}
+m_2=\frac\pi2,\qquad m_3=\pi,
+\qquad m_4=\frac{3\pi^2}{4},\qquad m_5=2\pi^2.
+\end{equation}
+The variance coefficients become
+\begin{align}
+v_1&=\pi,\\
+v_2&=\frac{\pi(15\pi-28)}{12},\\
+v_3&=\frac{\pi(16\pi^2-45\pi-3)}{6},\\
+v_4&=\frac{\pi(2925\pi^3-11010\pi^2+5981\pi-36)}{360}.
+\end{align}
+Since $C_G=\sqrt\pi$,
+\begin{equation}
+\boxed{
+g_G^*(n)=n-K_G+\frac{A_G}{n}+\frac{B_G}{n^2}+O(n^{-3}),}
+\end{equation}
+where
+\begin{align}
+K_G&=\frac{15\pi-28}{12}\approx1.593657483654,\\
+A_G&=\frac{856+240\pi-159\pi^2}{144}\approx0.282744007558,\\
+B_G&=\frac{89220\pi^2+130784-28344\pi-29475\pi^3}{8640}
+\approx0.971620062501.
+\end{align}
+
+\subsection{Rademacher increments: an independent coefficient check}
+Let $\varepsilon=\pm1$ with probability $1/2$. Then $R\equiv1$, hence
+\begin{equation}
+y\equiv0,\qquad m_2=m_3=m_4=m_5=1,
+\end{equation}
+and
+\begin{equation}
+L=2\atanh(x),\qquad x=\sum_jw_jQ_j.
+\end{equation}
+Theorem 3 predicts
+\begin{equation}
+\boxed{
+\Var(L_n)=2\alpha+3\alpha^2+5\alpha^3+\frac{53}{6}\alpha^4+O(\alpha^5).}
+\end{equation}
+This can be recovered independently without any $x$--$y$ joint algebra. The Rademacher weighted sum has
+\begin{align}
+\E x^2&=s_2,\\
+\E x^4&=3s_2^2-2s_4,
+\end{align}
+with higher even moments obtained from the Rademacher cumulants. Substitution into
+\begin{equation}
+\atanh^2x=x^2+\frac23x^4+\frac{23}{45}x^6+\frac{44}{105}x^8+O(x^{10})
+\end{equation}
+and the exact $s_r$ expansions give the same four coefficients.  Because
+$y\equiv0$, this calculation avoids the joint $x$--$y$ cumulant algebra and
+independently reproduces $v_3$ and $v_4$.
+
+\section{Formal verification and reproducible checks}
+The accompanying Lean 4 source separates exact pathwise results, kernel
+algebra, weak-limit transfer, and distributional benchmarks.  It is available
+at
+\begin{center}
+\url{https://github.com/pawelmalmyga-ai/EndpointCoordinate}.
+\end{center}
+
+\begin{table}[H]
+\centering
+\caption{Main mathematical layers represented in Lean.}
+\label{tab:leanmap}
+\scriptsize
+\begin{tabular}{>{\raggedright\arraybackslash}p{0.29\textwidth}>{\raggedright\arraybackslash}p{0.22\textwidth}>{\raggedright\arraybackslash}p{0.35\textwidth}}
+\toprule
+Claim layer & Lean module & Representative declaration \\
+\midrule
+Matched endpoint identity & \texttt{Core} & \path{matched_endpoint_identity}, \path{finite_path_geometry} \\
+Classical Wilder up/down recursion bridge & \texttt{Core} & \path{directionalRun_matches_run}, \path{directionalRun_from_initial_matches} \\
+RSI and log-odds chain & \texttt{Core} & \path{exact_rsi_logOdds_chain} \\
+Recursive Wilder RSI/log-odds chain & \texttt{Core} & \path{wilder_directionalRun_rsi_logOdds_chain} \\
+Wilder displacement bound & \texttt{Core} & \path{wilder_finite_path_displacement_interval} \\
+Weight energy and effective length & \texttt{Probability} & \path{wilderWeight_sq_tsum}, \path{wilder_effectiveLength} \\
+Stationary smoother and tail energy & \texttt{Stationary} & \path{stationaryWilderSeries_recursion}, \path{wilderWeight_sq_tail_fraction} \\
+Local log-odds linearization & \texttt{Asymptotics} & \path{logOdds_isEquivalent_twice_id} \\
+Weak-limit transfer & \texttt{CLT} & \path{effectiveLength_half_logOdds_clt_transfer} \\
+Gaussian and Laplace benchmarks & \texttt{Gaussian}, \texttt{Laplace}, \texttt{TriangularArray} & \path{finiteGaussianWilderRow_clt}, \path{finiteLaplaceWilderRow_clt} \\
+Finite-variance linear-row CLT & \texttt{FiniteVarianceCLT} & \path{finiteVarianceWilderRow_clt} \\
+Student moment substitutions & \texttt{Student} & \path{student_firstVarianceShift_from_radial_moments} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The Lean sources contain no \texttt{sorry}, \texttt{admit}, or project-defined
+axioms.  Kernel acceptance establishes each listed conclusion from the
+assumptions in its theorem type; it does not establish that those assumptions
+hold for market data.
+
+The theorem \path{finiteVarianceWilderRow_clt} concerns normalized finite
+linear weighted rows with vanishing omitted squared-weight mass.  The
+declarations in \texttt{CLT.lean} conditionally transfer an already established
+limit through the local log-odds map.  Thus the stationary nonlinear theorem
+in Section 6 is proved conventionally in this paper rather than as one composed
+Lean theorem.  The Berry--Esseen proof and the analytic localization and
+remainder estimates used for the fourth-order variance expansion are likewise
+outside the present formalization.
+
+The repository's pinned SymPy script exactly reproduces the finite coefficient
+enumeration and is run in continuous integration.  This is an independent
+check of the algebra, not a substitute for the analytic estimates in Section 8.
+
+\section{Scope and limitations}
+The finite-horizon expansion uses stronger assumptions than the large-$n$
+Gaussian limit.  The following distinctions delimit its interpretation.
+
+\begin{enumerate}
+\item \textbf{Symmetry is essential for the finite-horizon variance expansion.} It makes the sign independent of magnitude, forces odd-$x$ cumulants to vanish, and gives $\E L=0$. An asymmetric innovation law generally produces finite-$n$ centering terms and different coefficient algebra. No asymmetric analogue is claimed here.
+
+\item \textbf{The expansion theorem is light-tail.} The exponential-moment assumption is used for fixed-deviation concentration, while the logarithmic integrability condition controls rare events where one directional mass is very small. These assumptions cover Gaussian, Laplace, and bounded laws such as Rademacher. They do not cover Student-$t$ laws.
+
+\item \textbf{The expansion is not an exact distributional pivot.}
+$g_F^*(n)$ standardizes variance, while Theorem 2 controls convergence of the
+full distribution.  The displayed formulas are asymptotic expansions of
+$C_F^2/\Var(L_n)$, not closed forms for the exact finite-$n$ variance.
+
+\item \textbf{The Student-$t$ extension has a separate status.}  The companion
+technical note proposes a first-order result for Student-$t_\nu$, $\nu>3$.  Lean
+checks the moment substitutions and constants, but the heavy-tail analytic
+argument is not formalized and is not used in the theorems of this paper.
+
+\item \textbf{Input scale matters for probabilistic interpretation.}  The exact
+path identities hold for price and log-price inputs alike.  The limit theorem
+and finite-horizon coefficients apply to i.i.d. increments of the chosen
+input.  Under a multiplicative price path they apply directly to log-price RSI,
+not as exact formulas for classical price RSI; the latter comparison is
+reported only as a numerical robustness audit.
+
+\item \textbf{No predictive statement is made.} The results concern the geometry and normalization of the RSI log-odds coordinate only.
+\end{enumerate}
+
+\section{Research provenance and computational assistance}
+The author formulated the research question, selected the mathematical
+framework and assumptions, and is responsible for the claims and their
+interpretation.  AI tools assisted with proof drafting, Lean translation,
+symbolic checking, debugging, and editorial preparation.  Lean verification
+applies only to the declarations identified in Section 11; the remaining
+arguments are conventional mathematics.  The repository's
+\texttt{PROVENANCE.md} provides a fuller disclosure.
+
+\section{Conclusion}
+Wilder's directional-mass construction admits a natural unbounded coordinate
+\begin{equation}
+L_n=\log(U_n/D_n)=2\atanh(F_n).
+\end{equation}
+The relation between this coordinate and price displacement has an exact finite-horizon geometry, while its stochastic scale has a separate probabilistic structure. Under zero-mean i.i.d. finite-variance increments,
+\begin{equation}
+\frac{\sqrt{2n-1}\,\E|\varepsilon|}{2\sigma}L_n
+\Rightarrow N(0,1).
+\end{equation}
+The equivalent $\sqrt n$ representation uses
+$C_F=\sqrt2\sigma/\E|\varepsilon|$.  The factor $2n-1$ is the exact
+inverse-energy length of the linear Wilder kernel; it is not an exact
+finite-$n$ normalization of the nonlinear log-odds coordinate.
+With a finite third absolute moment, the full nonlinear log ratio admits an $O(n^{-1/2})$ Berry--Esseen bound.
+
+Under stronger symmetric light-tail assumptions, the variance itself has a controlled finite-horizon expansion through fourth order in $\alpha=1/n$. That expansion yields a law-specific effective normalization length
+\begin{equation}
+g_F^*(n)=n-K_F+\frac{A_F}{n}+\frac{B_F}{n^2}+O(n^{-3}),
+\end{equation}
+with analytically determined coefficients. In particular,
+\begin{equation}
+g_L^*(n)=n-\frac43+\frac{5}{18n}+\frac{5}{27n^2}+O(n^{-3})
+\end{equation}
+for Laplace increments, while Gaussian increments produce a distinct $\pi$-dependent correction.
+
+These law-specific formulas are exact asymptotic statements for the additive
+input model just described.  When the chosen input is log price they apply
+directly to log-return innovations.  Their behavior for classical price RSI
+after exponentiating log returns is a separate finite-sample question, treated
+numerically in the accompanying price-path audit rather than asserted as a
+consequence of the theorems above.
+
+The exact geometry, its finite-path connection to the classical recursive
+Wilder masses, effective-length identities, conditional log-odds transfer,
+and the finite-variance linear-row limit theorem are checked in Lean.  The
+stationary nonlinear limit, Berry--Esseen bound, and higher-order analytic
+estimates are conventional proofs, with their status summarized in
+Tables~\ref{tab:status} and~\ref{tab:leanmap}.
+
+\appendix
+\section{Derivation of the one-observation cumulants}
+For $q=QR$ and $r=R-1$, sign symmetry gives
+\begin{equation}
+\E[q^a r^b]=0\qquad\text{for odd }a.
+\end{equation}
+For even $a$,
+\begin{equation}
+\E[q^a r^b]
+=\E[R^a(R-1)^b]
+=\sum_{k=0}^b\binom{b}{k}(-1)^{b-k}m_{a+k}.
+\end{equation}
+The cumulants in Table~\ref{tab:cumulants} follow from the standard partition formula
+\begin{equation}
+\cum(Z_1,\ldots,Z_r)
+=\sum_{\pi\in\mathcal P_r}(|\pi|-1)!(-1)^{|\pi|-1}
+\prod_{B\in\pi}\E\prod_{i\in B}Z_i.
+\end{equation}
+Only orders two through five are required because $s_r(\alpha)=O(\alpha^{r-1})$ and $r\ge6$ therefore begins at $O(\alpha^5)$.
+
+\section{Reproducible coefficient calculation}
+The coefficient calculation in Theorem 3 is finite and deterministic. It uses:
+\begin{enumerate}
+\item the polynomial $P_8$ displayed in the finite-horizon expansion section;
+\item the exact cumulant relation $\cum(x^{[a]},y^{[b]})=s_{a+b}c_{a,b}$;
+\item the ordinary moment--cumulant partition formula;
+\item the $\alpha$ expansions of $s_2,s_3,s_4,s_5$.
+\end{enumerate}
+An accompanying Python/SymPy script,
+\path{supplement/moment_expansion_audit.py}, enumerates set partitions exactly,
+uses symbolic rational arithmetic, and returns
+\begin{align*}
+v_1&=2m_2,\\
+v_2&=(15m_2^2+2m_2-8m_3)/3,\\
+v_3&=(64m_2^3+5m_2^2-64m_2m_3+m_2-2m_3+11m_4)/3,
+\end{align*}
+and the displayed $v_4$. It also reproduces the Laplace, Rademacher, Gaussian,
+and Student-law substitutions used in the repository. The script performs no
+simulation and contains no fitted coefficient.  It is run in continuous
+integration.  Its role is algebraic; the analytic remainder estimates are
+supplied by Section 8.
+
+\section{Relation to the earlier empirical scaling}
+The earlier practitioner study \cite{malmyga2025} used the compact rule
+$2/\sqrt{n-1}$ as an empirically successful cross-lookback scale and
+explicitly identified formal mathematical validation as an open problem.  The
+present analysis separates three objects that should not be conflated:
+\begin{enumerate}
+\item the exact geometric support scale $n-1$ of the endpoint displacement;
+\item the exact inverse-energy length $2n-1$ of the linear Wilder kernel;
+\item the law-dependent finite-$n$ variance normalizer $g_F^*(n)$ of the full
+nonlinear log-odds coordinate.
+\end{enumerate}
+The practical $2/\sqrt{n-1}$ rule is therefore neither the exact kernel-energy
+normalization nor a universal finite-$n$ theorem.  For Laplace increments,
+$C_F=2$ and $g_L^*(n)=n-4/3+O(1/n)$, so the earlier expression is close but not
+exact.  For Gaussian increments, both the law constant and the finite
+correction differ.  Its practical performance remains an empirical question,
+separate from the exact and asymptotic results proved here.
+
+\begin{thebibliography}{9}
+\bibitem{berry}
+Berry, A. C. (1941). The Accuracy of the Gaussian Approximation to the Sum of Independent Variates. \emph{Transactions of the American Mathematical Society}, 49(1), 122--136.
+
+
+\bibitem{boucheron2013}
+Boucheron, S., Lugosi, G., and Massart, P. (2013). \emph{Concentration Inequalities: A Nonasymptotic Theory of Independence}. Oxford University Press.
+
+\bibitem{esseen}
+Esseen, C.-G. (1942). On the Liapounoff Limit of Error in the Theory of Probability. \emph{Arkiv f\"or Matematik, Astronomi och Fysik}, 28A(9), 1--19.
+
+\bibitem{malmyga2025}
+Ma{\l}myga, P. (2025). The True Nature of RSI: From Fixed Thresholds to Adaptive Zones. \emph{Journal of Technical Analysis}, 75, 122--144. Available at \url{https://cmtassociation.org/wp-content/uploads/2025/12/JoTA-75.pdf}.
+
+
+\bibitem{petrov1975}
+Petrov, V. V. (1975). \emph{Sums of Independent Random Variables}. Springer-Verlag, Berlin--Heidelberg.
+
+\bibitem{rosenthal1970}
+Rosenthal, H. P. (1970). On the subspaces of $L^p$ $(p>2)$ spanned by sequences of independent random variables. \emph{Israel Journal of Mathematics}, 8(3), 273--303.
+
+\bibitem{wilder}
+Wilder, J. W., Jr. (1978). \emph{New Concepts in Technical Trading Systems}. Trend Research.
+\end{thebibliography}
+
+\end{document}

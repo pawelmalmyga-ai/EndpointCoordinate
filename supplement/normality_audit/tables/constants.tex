@@ -1,0 +1,17 @@
+\begin{table}[H]
+\centering
+\caption{Scale constants and correction formulas used by the audit.}
+\label{tab:constants}
+\begin{tabular}{lrrl}
+\toprule
+Law & $C_F$ & $K_F$ & Correction used \\
+\midrule
+Gaussian & 1.772454 & 1.593657 & $n-K_F+A_F/n+B_F/n^2$ \\
+Laplace & 2.000000 & 1.333333 & $n-K_F+A_F/n+B_F/n^2$ \\
+Student-t4 & 2.000000 & -0.000000 & $n-K_F$ (analytic note) \\
+Student-t5 & 1.923825 & 0.959710 & $n-K_F$ (analytic note) \\
+Student-t6 & 1.885618 & 1.222222 & $n-K_F$ (analytic note) \\
+Student-t8 & 1.847521 & 1.400000 & $n-K_F$ (analytic note) \\
+\bottomrule
+\end{tabular}
+\end{table}

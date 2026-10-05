@@ -1,0 +1,42 @@
+EndpointCoordinate licensing
+============================
+
+Copyright (c) 2026 Paweł Małmyga
+
+This repository uses separate licenses for software and research content.
+
+1. Software source code
+-----------------------
+
+The Lean and Python source code, GitHub Actions workflows, build configuration,
+dependency manifests, and other executable or machine-configuration files are
+licensed under the MIT License. The complete terms are in `LICENSE-CODE`.
+
+This category includes, in particular:
+
+- `EndpointCoordinate.lean` and `EndpointCoordinate/*.lean`;
+- `supplement/*.py` and `supplement/normality_audit/*.py`;
+- `.github/workflows/`;
+- `lakefile.toml`, `lake-manifest.json`, `lean-toolchain`, and requirements
+  files.
+
+2. Research and documentation content
+-------------------------------------
+
+The manuscripts, proof notes, documentation, figures, tables, and published
+data are licensed under the Creative Commons Attribution 4.0 International
+License (CC BY 4.0). Attribution should identify Paweł Małmyga as the author,
+name the relevant work or file, and link to this repository or a versioned
+release. The terms and canonical legal-code link are in `LICENSE-CONTENT`.
+
+This category includes, in particular:
+
+- `manuscript/`;
+- TeX and PDF documents under `supplement/`;
+- `supplement/normality_audit/results/`, `figures/`, and `tables/`;
+- Markdown documentation and citation metadata.
+
+Where a file combines executable source with substantial prose or generated
+research output, the license of the primary function described above applies.
+Third-party dependencies and cited works remain subject to their own licenses
+and are not relicensed by this notice.

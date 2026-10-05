@@ -1,0 +1,621 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=22mm]{geometry}
+\usepackage{amsmath,amssymb,amsthm,booktabs,microtype}
+\usepackage{xurl}
+\usepackage{hyperref}
+\hypersetup{
+  hidelinks,
+  pdftitle={Heavy-Tail First-Order Variance Correction for the RSI Log-Odds Coordinate},
+  pdfauthor={Paweł Małmyga},
+  pdfsubject={A technical note for symmetric innovations with a finite (3+delta) moment},
+  pdfkeywords={Student-t, heavy tails, variance expansion, endpoint coordinate, RSI log odds}
+}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}{Lemma}
+\newtheorem{corollary}{Corollary}
+\newcommand{\E}{\mathbb E}
+\newcommand{\Var}{\operatorname{Var}}
+\newcommand{\Prob}{\mathbb P}
+\newcommand{\atanh}{\operatorname{atanh}}
+\title{Heavy-Tail First-Order Variance Correction\\\large For the RSI log-odds coordinate under a finite $(3+\delta)$ moment}
+\author{Pawe{\l} Ma{\l}myga\\\small Independent researcher}
+\date{September 2026}
+\begin{document}
+\maketitle
+
+\begin{abstract}
+This note extends the first law-dependent finite-horizon variance correction
+from exponentially light tails to symmetric innovation laws with a finite
+$(3+\delta)$ absolute moment and a logarithmic lower-tail condition.  The
+result is
+\[
+\Var(L_\alpha)=2m_2\alpha+\frac{15m_2^2+2m_2-8m_3}{3}\alpha^2+o(\alpha^2),
+\]
+and therefore
+\[
+g_F^*(n)=\frac{C_F^2}{\Var(L_{1/n})}=n-K_F+o(1),
+\qquad
+K_F=\frac{15m_2^2+2m_2-8m_3}{6m_2}.
+\]
+For variance-normalized Student-$t_\nu$ innovations this applies for every
+$\nu>3$ and gives an explicit $K_\nu$.  The proof uses a shrinking big-jump
+cutoff and termwise-truncated centered variables, so no fourth raw moment is
+required when $3<p<4$.  The expansion is pointwise in the innovation law: its
+constants and rates may depend on $\delta$ and $\E R^{3+\delta}$, and no
+uniformity as $\delta\downarrow0$ is claimed.
+\end{abstract}
+
+\section*{Verification scope}
+This is a conventional mathematical proof, not a theorem accepted by the Lean
+kernel.  The accompanying Lean repository checks
+the exact finite-path endpoint identities, exponential-weight algebra,
+conditional log-odds transfer results, and a finite-variance central limit
+theorem for normalized \emph{linear} Wilder rows.  It does not currently prove
+the nonlinear variance expansion stated in this note.
+
+The repository's pinned SymPy calculation independently reconstructs the
+formal moment and cumulant coefficients and their law-specific substitutions.
+It checks the finite coefficient algebra; the tail localization, indicator
+removal, and analytic remainder estimates are established by the argument
+below and are not machine-verified.
+
+\section{Setup}
+Let $\{\varepsilon_j\}_{j\ge0}$ be i.i.d., symmetric, nondegenerate, and satisfy $\Prob(\varepsilon=0)=0$.  Put
+\[
+\mu_1=\E|\varepsilon|,\qquad R=\frac{|\varepsilon|}{\mu_1},\qquad Q=\operatorname{sgn}(\varepsilon).
+\]
+Symmetry and absence of an atom at zero imply that $Q$ is Rademacher and independent of $R$.  Hence $\E R=1$.  For $\alpha\in(0,1)$ define geometric weights
+\[
+w_j=\alpha(1-\alpha)^j,\qquad \sum_{j\ge0}w_j=1,
+\]
+and
+\[
+x=\sum_{j\ge0}w_jQ_jR_j,\qquad y=\sum_{j\ge0}w_j(R_j-1).
+\]
+Then the signed directional balance is
+\[
+F_\alpha=\frac{x}{1+y},
+\]
+and the full RSI log-odds coordinate is
+\[
+L_\alpha=2\atanh(F_\alpha).
+\]
+The law of $L_\alpha$ is symmetric, hence $\E L_\alpha=0$ whenever $L_\alpha$ is integrable.
+
+Write
+\[
+m_k=\E R^k,
+\qquad
+s_r(\alpha)=\sum_{j\ge0}w_j^r
+=\frac{\alpha^r}{1-(1-\alpha)^r}.
+\]
+In particular,
+\[
+s_2=\frac\alpha2+\frac{\alpha^2}{4}+O(\alpha^3),
+\qquad
+s_3=\frac{\alpha^2}{3}+O(\alpha^3).
+\]
+
+\section{Main statement}
+\begin{theorem}[First finite-horizon variance correction without exponential tails]
+Assume that for some $\delta>0$
+\[
+\E R^{3+\delta}<\infty.
+\]
+Assume also that
+\[
+\E\bigl[(-\log R)_+^q\bigr]<\infty
+\]
+for some
+\[
+q>\frac{2(2+\delta)}{\delta}.
+\]
+Given such a $q$, choose $\gamma>0$ so small that
+\begin{equation}\label{eq:gamma-choice}
+0<\gamma<\min\left\{
+\frac{\delta}{3+\delta},\,
+\frac{2+\delta-2q/(q-2)}{3+\delta}
+\right\}.
+\end{equation}
+The second upper bound is positive precisely because of the strict inequality imposed on $q$.  Then, as $\alpha\downarrow0$,
+\begin{equation}\label{eq:var-exp}
+\boxed{
+\Var(L_\alpha)
+=2m_2\alpha
++\frac{15m_2^2+2m_2-8m_3}{3}\alpha^2
++o(\alpha^2).}
+\end{equation}
+Consequently, with
+\[
+C_F^2=2m_2=\frac{2\E\varepsilon^2}{(\E|\varepsilon|)^2},
+\]
+the exact-variance normalizer satisfies
+\begin{equation}\label{eq:g-shift}
+\boxed{
+ g_F^*(n):=\frac{C_F^2}{\Var(L_{1/n})}
+=n-K_F+o(1),}
+\end{equation}
+where
+\begin{equation}\label{eq:K}
+\boxed{
+K_F=\frac{15m_2^2+2m_2-8m_3}{6m_2}.}
+\end{equation}
+\end{theorem}
+
+\paragraph{Pointwise nature of the expansion.}
+For each fixed innovation law satisfying the stated assumptions, one may fix an admissible $\delta>0$, then choose $q$ and $\gamma$ as above.  The remainder $o(\alpha^2)$ is therefore pointwise in the law.  Neither the implied constants nor the rate are asserted to be uniform over a family for which $\delta\downarrow0$ or $\E R^{3+\delta}$ diverges.
+
+The proof is split into localization, complement control, and local moment algebra.
+
+\section{Weight and truncation estimates}
+Fix
+\[
+p=3+\delta.
+\]
+Choose $\gamma$ according to \eqref{eq:gamma-choice} and define
+\[
+\beta=p-1-\gamma p=2+\delta-\gamma(3+\delta).
+\]
+Then
+\[
+\beta>\frac{2q}{q-2}>2,
+\qquad
+\beta\left(1-\frac2q\right)>2.
+\]
+Choose $q$ first and then a sufficiently small positive $\gamma$.  Put
+\[
+a_\alpha=\alpha^\gamma,
+\qquad
+H_\alpha=\left\{\sup_{j\ge0}w_jR_j>a_\alpha\right\}.
+\]
+
+\begin{lemma}[Master tail estimates]
+For $0\le r\le p$,
+\begin{equation}\label{eq:tail-master}
+\sum_j w_j^r\E\!\left[R^r\mathbf 1_{\{w_jR>a_\alpha\}}\right]
+\le \E R^p\,a_\alpha^{r-p}s_p
+=O\!\left(\alpha^{p-1-\gamma(p-r)}\right).
+\end{equation}
+For $r\ge p$,
+\begin{equation}\label{eq:trunc-master}
+\sum_j w_j^r\E\!\left[R^r\mathbf 1_{\{w_jR\le a_\alpha\}}\right]
+\le \E R^p\,a_\alpha^{r-p}s_p
+=O\!\left(\alpha^{p-1+\gamma(r-p)}\right).
+\end{equation}
+In particular,
+\begin{equation}\label{eq:H-prob}
+\Prob(H_\alpha)=O(\alpha^\beta)=o(\alpha^2).
+\end{equation}
+Moreover, the lost first, second, and third weighted moments caused by truncation are all $o(\alpha^2)$.
+\end{lemma}
+
+\begin{proof}
+On $\{R>a/w_j\}$ and for $r\le p$,
+\[
+R^r\le R^p(a/w_j)^{r-p}.
+\]
+For $r\ge p$ the same inequality holds on $\{R\le a/w_j\}$ with the inequality direction appropriate to $r-p\ge0$.  Summation gives \eqref{eq:tail-master}--\eqref{eq:trunc-master}.  Setting $r=0$ and using a union bound gives \eqref{eq:H-prob}.  For $r=1,2,3$, the three exponents in \eqref{eq:tail-master} are, respectively,
+\[
+2+\delta-\gamma(2+\delta),\qquad
+2+\delta-\gamma(1+\delta),\qquad
+2+\delta-\gamma\delta.
+\]
+Each is strictly larger than $2$ under
+$\gamma<\delta/(3+\delta)$.  Hence the corresponding lost weighted moments
+are $o(\alpha^2)$.
+\end{proof}
+
+\section{Localization without an exponential moment}
+Define termwise-truncated magnitudes
+\[
+\widetilde R_j=R_j\mathbf 1_{\{w_jR_j\le a_\alpha\}},
+\]
+and centered truncated variables
+\[
+A_j=Q_j\widetilde R_j,
+\qquad
+B_j=\widetilde R_j-\E\widetilde R_j.
+\]
+Set
+\[
+\widetilde x=\sum_jw_jA_j,
+\qquad
+z=\sum_jw_jB_j,
+\qquad
+b_\alpha=\sum_jw_j(\E\widetilde R_j-1).
+\]
+By symmetry $\E A_j=0$, while Lemma 1 with $r=1$ gives
+\begin{equation}\label{eq:bias}
+|b_\alpha|
+\le \sum_jw_j\E[R_j\mathbf 1_{\{w_jR_j>a_\alpha\}}]
+=o(\alpha^2).
+\end{equation}
+On $H_\alpha^c$ we have exactly
+\begin{equation}\label{eq:trunc-identities}
+x=\widetilde x,
+\qquad
+y=z+b_\alpha.
+\end{equation}
+The event $H_\alpha^c$ bounds each weighted summand $w_jR_j$ by $a_\alpha$;
+it does not imply $|x|\le a_\alpha$ or $|y|\le a_\alpha$.  The infinite sums
+are controlled below through variance and moment bounds.
+
+\begin{lemma}[Uniform moments of the truncated vector]\label{lem:trunc-moments}
+For every fixed $r\ge2$,
+\[
+\sup_{0<\alpha<\alpha_0}
+\left(\E|\widetilde x|^r+\E|z|^r\right)<\infty.
+\]
+More precisely, Rosenthal's inequality bounds each moment by a constant multiple of a variance term of order $O(\alpha^{r/2})$ plus a diagonal term.  For $r\le p$ the diagonal term is $O(s_r)=O(\alpha^{r-1})$; for $r>p$ Lemma 1 gives
+\[
+\sum_jw_j^r\E\widetilde R_j^r
+=O\!\left(\alpha^{p-1+\gamma(r-p)}\right).
+\]
+The same conclusion holds for $B_j$ after centering.
+\end{lemma}
+
+\begin{proof}
+Apply Rosenthal's inequality first to finite partial sums.  The sum of variances is $O(\alpha)$ because $\sum_jw_j^2=O(\alpha)$ and the truncated second moments are uniformly bounded.  The stated diagonal bounds follow from the finite $p$-moment when $r\le p$ and from \eqref{eq:trunc-master} when $r>p$.  Letting the number of summands tend to infinity gives the result by $L^r$ convergence.
+\end{proof}
+
+The centered weighted summands $w_jA_j$ have absolute size at most $a_\alpha$, and $w_jB_j$ have absolute size at most $a_\alpha+O(\alpha)=O(a_\alpha)$.  Their total variances are $O(\alpha)$.
+
+\begin{lemma}[Shrinking-cutoff concentration]
+For each fixed sufficiently small $\eta>0$ there are constants $c,C>0$ such that
+\begin{equation}\label{eq:local-prob}
+\Prob\bigl((|x|>\eta\ \text{or}\ |y|>\eta)\cap H_\alpha^c\bigr)
+\le C\exp(-c\alpha^{-\gamma})
+\end{equation}
+for all sufficiently small $\alpha$.  Consequently, if
+\[
+G_\alpha=H_\alpha^c\cap\{|x|\le\eta,\ |y|\le\eta\},
+\]
+then
+\begin{equation}\label{eq:Gcomp}
+\Prob(G_\alpha^c)=O(\alpha^\beta)+O(e^{-c\alpha^{-\gamma}}).
+\end{equation}
+\end{lemma}
+
+\begin{proof}
+Apply Bernstein's inequality to finite partial sums of the independent centered variables $w_jA_j$ and $w_jB_j$.  The variance proxy is $O(\alpha)$ and the maximal summand is $O(a_\alpha)=O(\alpha^\gamma)$.  For a fixed deviation $u>0$,
+\[
+2\exp\left[-c\min\left(\frac{u^2}{\alpha},\frac{u}{\alpha^\gamma}\right)\right]
+\le 2e^{-c'\alpha^{-\gamma}},
+\]
+since $0<\gamma<1$.  Pass to the infinite sums by $L^2$ convergence of the partial sums.  By \eqref{eq:bias}, $y=z+b_\alpha$ on $H_\alpha^c$ with $b_\alpha=o(1)$, so the deterministic bias is absorbed into $u$ for small $\alpha$.  Add \eqref{eq:H-prob}.
+\end{proof}
+
+\paragraph{Why the cutoff must shrink.}
+A fixed cutoff $a_\alpha\equiv a>0$ would only make the Bernstein bounded-summand term $\exp(-c/a)$, which does not vanish with $\alpha$.  The shrinking cutoff $a_\alpha=\alpha^\gamma$ is therefore essential in the polynomial-tail proof.
+
+\section{The complement contributes below order
+  \texorpdfstring{$\alpha^2$}{alpha squared}}
+Let $T_+$ and $T_-$ be the first indices with $Q_j=+1$ and $Q_j=-1$, respectively.  They are geometric with success probability $1/2$ and are independent of the magnitudes.  Since
+\[
+U\ge \mu_1w_{T_+}R_{T_+},\qquad D\ge \mu_1w_{T_-}R_{T_-},
+\]
+we obtain
+\[
+(-\log U)_+
+\le C+\log(1/\alpha)+T_+[-\log(1-\alpha)]+(-\log R_{T_+})_+,
+\]
+and similarly for $D$.  Positive logarithms are uniformly controlled by the finite $p$-moment, because $U,D\le \mu_1\sum_jw_jR_j$ and Jensen's inequality gives a uniform positive moment of the weighted average.
+
+\begin{lemma}[Logarithmic moments and bad-set negligibility]
+Under the assumptions of Theorem 1,
+\begin{equation}\label{eq:Lq}
+\E|L_\alpha|^q=O\bigl(1+\log^q(1/\alpha)\bigr).
+\end{equation}
+Moreover,
+\begin{equation}\label{eq:badL2}
+\E\left[L_\alpha^2\mathbf 1_{G_\alpha^c}\right]=o(\alpha^2).
+\end{equation}
+\end{lemma}
+
+\begin{proof}
+The first-success bounds above, the finite $q$-moment of $(-\log R)_+$, and the geometric moments of $T_\pm$ yield \eqref{eq:Lq}.  By H\"older and \eqref{eq:Gcomp},
+\[
+\E[L_\alpha^2\mathbf 1_{G_\alpha^c}]
+\le (\E|L_\alpha|^q)^{2/q}\Prob(G_\alpha^c)^{1-2/q}.
+\]
+The polynomial contribution is
+$O(\log^2(1/\alpha)\alpha^{\beta(1-2/q)})=o(\alpha^2)$ by construction.
+The stretched-exponential contribution is smaller than every power of
+$\alpha$.
+\end{proof}
+
+\section{Local Taylor algebra and moment bookkeeping}
+Choose $\eta<1/3$.  On $G_\alpha$,
+\[
+\left|\frac{x}{1+y}\right|\le \frac{\eta}{1-\eta}<\frac12,
+\]
+so the Taylor series is uniformly regular.  Direct expansion gives
+\begin{equation}\label{eq:taylor}
+\frac{L_\alpha^2}{4}
+=x^2-2x^2y+3x^2y^2+\frac23x^4+\mathcal R_5,
+\end{equation}
+where on $G_\alpha$
+\[
+|\mathcal R_5|\le C_\eta(|x|+|y|)^5.
+\]
+
+\paragraph{Why total degree four is sufficient.}
+On the fixed neighborhood defining $G_\alpha$, the map
+$2\atanh(x/(1+y))$ is analytic and the displayed polynomial contains every
+term in its square through total degree four.  Terms of total degree at least
+five are therefore absorbed into $\mathcal R_5$.  Consequently, no such term
+can affect the coefficient of $\alpha^2$ once
+\[
+\E\bigl[(|x|+|y|)^5\mathbf 1_{G_\alpha}\bigr]=o(\alpha^2)
+\]
+has been established.  Lemma 5 proves precisely this analytic remainder
+condition; the symbolic calculation checks only the resulting finite polynomial
+algebra.
+
+\begin{lemma}[Local moments through total degree four]
+Under the assumptions of Theorem 1,
+\begin{align}
+\E[x^2\mathbf 1_{G_\alpha}]&=m_2s_2+o(\alpha^2),\label{eq:m20}\\
+\E[x^2y\mathbf 1_{G_\alpha}]&=(m_3-m_2)s_3+o(\alpha^2),\label{eq:m21}\\
+\E[x^4\mathbf 1_{G_\alpha}]&=3m_2^2s_2^2+o(\alpha^2),\label{eq:m40}\\
+\E[x^2y^2\mathbf 1_{G_\alpha}]&=m_2(m_2-1)s_2^2+o(\alpha^2),\label{eq:m22}\\
+\E[(|x|+|y|)^5\mathbf 1_{G_\alpha}]&=o(\alpha^2).\label{eq:m5}
+\end{align}
+\end{lemma}
+
+\begin{proof}
+We work with the centered termwise-truncated vector $(\widetilde x,z)$ from
+Section 4.  This does not require an untruncated fourth moment when $3<p<4$.
+
+\paragraph{Removing the indicators.}
+Let $P$ be any fixed polynomial in two variables of total degree at most five.  Lemma~\ref{lem:trunc-moments} gives uniformly bounded moments of $P(\widetilde x,z)$ of arbitrarily high fixed order.  Since $\beta>2$, choose $s>1$ so large that $\beta(1-1/s)>2$.  H\"older therefore gives
+\[
+\E\bigl[|P(\widetilde x,z)|\mathbf 1_{H_\alpha}\bigr]
+\le
+\bigl(\E|P(\widetilde x,z)|^s\bigr)^{1/s}
+\Prob(H_\alpha)^{1-1/s}
+=o(\alpha^2).
+\]
+On $H_\alpha^c$, identities \eqref{eq:trunc-identities} hold.  The additional localization failure
+$\{|x|>\eta\text{ or }|y|>\eta\}\cap H_\alpha^c$ has stretched-exponentially small probability by Lemma 3, and another H\"older bound using Lemma~\ref{lem:trunc-moments} makes its contribution $o(\alpha^M)$ for every fixed $M$.  Thus, for the polynomials below, expectations localized to $G_\alpha$ may be replaced, up to $o(\alpha^2)$, by full expectations of the corresponding expressions in $(\widetilde x,z+b_\alpha)$.
+
+\paragraph{Second and third degree.}
+Put
+\[
+V_A=\sum_jw_j^2\E\widetilde R_j^2,
+\qquad
+V_B=\sum_jw_j^2\Var(\widetilde R_j).
+\]
+The $r=1,2$ tail bounds in Lemma 1 imply
+\begin{equation}\label{eq:VA-VB}
+V_A=m_2s_2+o(\alpha^2),
+\qquad
+V_B=(m_2-1)s_2+o(\alpha^2).
+\end{equation}
+Hence $\E\widetilde x^2=V_A$.  Because the signs are independent and centered, every term in $\E(\widetilde x^2z)$ vanishes except the same-index triple, so
+\[
+\E(\widetilde x^2z)
+=\sum_jw_j^3
+\E\!\left[\widetilde R_j^2(\widetilde R_j-\E\widetilde R_j)\right]
+=(m_3-m_2)s_3+o(\alpha^2),
+\]
+where the error follows from the $r=1,2,3$ tail bounds.  Since $b_\alpha=o(\alpha^2)$ and $V_A=O(\alpha)$,
+\[
+\E\bigl[\widetilde x^2(z+b_\alpha)\bigr]
+=\E(\widetilde x^2z)+o(\alpha^2).
+\]
+This proves \eqref{eq:m20}--\eqref{eq:m21}.
+
+\paragraph{Fourth moment of $x$.}
+For independent centered variables $w_jA_j$,
+\[
+\E\widetilde x^4
+=3V_A^2+D_4,
+\]
+where
+\[
+D_4=\sum_jw_j^4
+\left(\E\widetilde R_j^4-3(\E\widetilde R_j^2)^2\right).
+\]
+If $p<4$ (equivalently, $0<\delta<1$), \eqref{eq:trunc-master} gives
+\[
+\sum_jw_j^4\E\widetilde R_j^4
+=O\!\left(\alpha^{p-1+\gamma(4-p)}\right).
+\]
+Writing $p=3+\delta$, the exponent is
+\[
+p-1+\gamma(4-p)=2+\delta+\gamma(1-\delta)>2
+\]
+because $1-\delta>0$, so this term is $o(\alpha^2)$.  More explicitly,
+\[
+\frac{1}{\alpha^2}\sum_jw_j^4\E\widetilde R_j^4
+=O\!\left(\alpha^{\delta+\gamma(1-\delta)}\right)\to0.
+\]
+This estimate is not uniform as $\delta\downarrow0$: its constant contains $\E R^{3+\delta}$ and its decay exponent can become arbitrarily small.  If $p\ge4$, the finite fourth moment gives $O(s_4)=O(\alpha^3)$.  Also $\sum_jw_j^4(\E\widetilde R_j^2)^2=O(s_4)$.  Thus $D_4=o(\alpha^2)$ and, by \eqref{eq:VA-VB},
+\[
+\E\widetilde x^4=3m_2^2s_2^2+o(\alpha^2).
+\]
+This proves \eqref{eq:m40}.  In particular, no untruncated fourth moment is invoked when $3<p<4$.
+
+\paragraph{The mixed fourth moment.}
+Because $\E(A_jB_j)=0$ by the independent Rademacher sign, the pair-partition formula gives
+\[
+\E(\widetilde x^2z^2)=V_AV_B+D_{22},
+\]
+where $D_{22}$ is a same-index fourth-degree diagonal.  Its absolute value is bounded by a constant multiple of
+\[
+\sum_jw_j^4\left(\E\widetilde R_j^4
++\E\widetilde R_j^2+1\right)=o(\alpha^2)
+\]
+by the same diagonal estimate used for $D_4$.  Thus $D_{22}=o(\alpha^2)$ for each fixed law satisfying the assumptions, with the same non-uniformity near the third-moment boundary.  Hence
+\[
+\E(\widetilde x^2z^2)
+=m_2(m_2-1)s_2^2+o(\alpha^2).
+\]
+The deterministic truncation bias is harmless:
+\[
+\E\bigl[\widetilde x^2(z+b_\alpha)^2\bigr]
+=\E(\widetilde x^2z^2)
++2b_\alpha\E(\widetilde x^2z)
++b_\alpha^2V_A,
+\]
+and the last two terms are $o(\alpha^2)$ by \eqref{eq:bias}.  After centering,
+the singleton-$y$ configurations vanish; their residual contribution is
+contained in $b_\alpha=o(\alpha^2)$.  Equation \eqref{eq:m22} follows.
+
+\paragraph{Fifth-degree remainder.}
+Rosenthal's inequality applied to the centered truncated sums gives
+\[
+\E|\widetilde x|^5+\E|z|^5
+\le C\left[O(\alpha^{5/2})
++\sum_jw_j^5\E\widetilde R_j^5+O(s_5)\right].
+\]
+If $p<5$ (equivalently, $0<\delta<2$), Lemma 1 bounds the diagonal term by
+\[
+O\!\left(\alpha^{p-1+\gamma(5-p)}\right)
+=O\!\left(\alpha^{2+\delta+\gamma(2-\delta)}\right)
+=o(\alpha^2),
+\]
+and if $p\ge5$ it is $O(s_5)=O(\alpha^4)$.  Together with $b_\alpha=o(\alpha^2)$ this yields
+\[
+\E(|\widetilde x|+|z+b_\alpha|)^5=o(\alpha^2).
+\]
+The indicator-removal argument at the start of the proof then gives \eqref{eq:m5}.
+\end{proof}
+
+\section{Proof of Theorem 1}
+By Lemma 4, the complement of $G_\alpha$ contributes $o(\alpha^2)$ to $\E L_\alpha^2$.  On $G_\alpha$, use \eqref{eq:taylor}, Lemma 5, and \eqref{eq:m5}:
+\[
+\frac14\E L_\alpha^2
+=m_2s_2-2(m_3-m_2)s_3
++3m_2(m_2-1)s_2^2
++2m_2^2s_2^2
++o(\alpha^2).
+\]
+Since
+\[
+s_2=\frac\alpha2+\frac{\alpha^2}{4}+O(\alpha^3),
+\qquad
+s_3=\frac{\alpha^2}{3}+O(\alpha^3),
+\qquad
+s_2^2=\frac{\alpha^2}{4}+O(\alpha^3),
+\]
+we obtain
+\[
+\frac14\E L_\alpha^2
+=\frac{m_2}{2}\alpha
++\frac{15m_2^2+2m_2-8m_3}{12}\alpha^2
++o(\alpha^2).
+\]
+Symmetry gives $\E L_\alpha=0$, so \eqref{eq:var-exp} follows.  Finally,
+\[
+\Var(L_{1/n})=\frac{C_F^2}{n}\left(1+\frac{K_F}{n}+o(n^{-1})\right),
+\]
+and inversion gives \eqref{eq:g-shift}.
+
+\section{Symbolic coefficient check}
+The accompanying script
+\texttt{supplement/moment\_expansion\_audit.py} reconstructs the relevant
+formal moment and cumulant expressions with exact SymPy arithmetic.  In
+particular, it independently reproduces
+\[
+\frac{15m_2^2+2m_2-8m_3}{3}
+\]
+as the coefficient of $\alpha^2$ in \eqref{eq:var-exp}, together with the
+Laplace, Rademacher, Gaussian, and Student-law substitutions used elsewhere in
+the project.  The script is run by continuous integration.
+
+This reproduces the finite coefficient calculation but is not a second proof
+of Theorem 1.  The theorem additionally depends on the
+localization, logarithmic-moment, indicator-removal, and Taylor-remainder
+arguments in the preceding sections.
+
+\section{\texorpdfstring{Student-$t$}{Student-t} corollary}
+\begin{corollary}[Variance-normalized Student-$t_\nu$, $\nu>3$]
+Let $\varepsilon$ be a centered Student-$t_\nu$ random variable, rescaled to variance one, with $\nu>3$.  Then all assumptions of Theorem 1 hold (choose any $p\in(3,\nu)$).  Moreover
+\begin{equation}\label{eq:Cnu}
+\boxed{
+C_\nu
+=\sqrt{\frac{2\pi}{\nu-2}}\,
+\frac{\Gamma(\nu/2)}{\Gamma((\nu-1)/2)} }
+\end{equation}
+and
+\begin{equation}\label{eq:Knu}
+\boxed{
+K_\nu
+=\frac54 C_\nu^2-\frac73-\frac{8}{3(\nu-3)}. }
+\end{equation}
+Hence, for each fixed $\nu>3$,
+\[
+\boxed{
+ g_\nu^*(n)=n-K_\nu+o(1).}
+\]
+The remainder is pointwise in $\nu$; no uniformity as $\nu\downarrow3$ is asserted.
+\end{corollary}
+
+\begin{proof}
+For raw Student-$t_\nu$,
+\[
+\E|T|^r
+=\nu^{r/2}\frac{\Gamma((r+1)/2)\Gamma((\nu-r)/2)}{\sqrt\pi\,\Gamma(\nu/2)},
+\qquad r<\nu.
+\]
+Scale cancels from $R=|\varepsilon|/\E|\varepsilon|$.  Formula \eqref{eq:Cnu} follows from $C_\nu^2=2m_2$.  Also
+\[
+\frac{m_3}{m_2}
+=\frac{\E|T|^3}{\E|T|\,\E T^2}
+=\frac{2(\nu-2)}{\nu-3}.
+\]
+Substitution into \eqref{eq:K} gives \eqref{eq:Knu}.  Student-$t$ has finite logarithmic moments near zero and at infinity, so the logarithmic assumption is automatic.  For a given $\nu>3$, one may choose any fixed $\delta$ with $0<\delta<\nu-3$.  The constants necessarily deteriorate as $\nu\downarrow3$, because the available $\delta$ shrinks and $\E|T|^{3+\delta}$ diverges as $3+\delta\uparrow\nu$.
+\end{proof}
+
+Selected values are
+\begin{center}
+\begin{tabular}{ccc}
+\toprule
+$\nu$ & $C_\nu$ & $K_\nu$\\
+\midrule
+$4$ & $2$ & $0$\\
+$4.5$ & $1.954366$ & $0.663323$\\
+$5$ & $1.923825$ & $0.959710$\\
+$5.1013\ldots$ & $1.918833$ & $1$\\
+$6$ & $1.885618$ & $11/9$\\
+$8$ & $1.847521$ & $7/5$\\
+$\infty$ (Gaussian) & $\sqrt\pi$ & $1.593657\ldots$\\
+\bottomrule
+\end{tabular}
+\end{center}
+The value $\nu=4$ is a genuine cancellation point: $K_4=0$, so the first constant correction vanishes and
+\[
+g_4^*(n)=n+o(1).
+\]
+This does not mean that the finite-$n$ normalization is exactly $n$; it means only that the constant-shift term is zero.  At the opposite edge, $K_\nu$ is not bounded as $\nu\downarrow3^+$ because of the pole $-8/[3(\nu-3)]$.  This divergence is consistent with, and warns against, any uniform interpretation of the $o(1)$ remainder across the full family $\nu>3$.
+
+The familiar proxy $\sqrt{n-1}$ is therefore not a Student-$t$ law in general.  Within this family it is first-order variance-correct only at a root of $K_\nu=1$; numerically,
+\[
+\nu_*\approx5.1013.
+\]
+Thus the appearance of $n-1$ corresponds to a particular tail thickness, not to a universal geometric law.
+
+\section{Scope and limitations}
+This note does not address the boundary $\nu=3$ or the regime $2<\nu<3$.
+The shrinking-cutoff proof requires a moment strictly above order three.
+
+The note also does not derive higher-order coefficients under polynomial tails.
+It establishes only the constant shift $K_F$, generated by the $\alpha^2$ term
+in the variance.  Corrections of order $1/n$ and $1/n^2$ would require control
+of progressively higher diagonal moments and their threshold cases.
+
+\section{Conclusion}
+For every fixed Student-$t_\nu$ law with $\nu>3$, the first-order
+variance-normalizing length has the form
+\[
+g_\nu^*(n)=n-K_\nu+o(1),
+\]
+with $K_\nu$ given by \eqref{eq:Knu}.  This extends the constant-shift
+calculation beyond exponential tails, but the remainder is pointwise in
+$\nu$ and the result does not extend uniformly to the third-moment boundary.
+
+\end{document}

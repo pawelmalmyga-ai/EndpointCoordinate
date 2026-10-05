@@ -1,0 +1,7 @@
+results/parts/
+*.aux
+*.log
+*.out
+*.fls
+*.fdb_latexmk
+__pycache__/

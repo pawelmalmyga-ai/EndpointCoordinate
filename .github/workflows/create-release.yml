@@ -1,0 +1,47 @@
+name: Create Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Semantic version tag to create"
+        required: true
+        default: "v1.0.0"
+        type: string
+
+jobs:
+  release:
+    name: Create tagged GitHub release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Validate release tag
+        shell: bash
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Expected a semantic version tag such as v1.0.0; got: $TAG"
+            exit 1
+          fi
+
+      - name: Create tag and release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists. Refusing to replace it."
+            exit 1
+          fi
+
+          gh release create "$TAG" \
+            --target "$GITHUB_SHA" \
+            --title "EndpointCoordinate $TAG" \
+            --generate-notes

@@ -1,0 +1,10 @@
+{
+  "status": "PASS",
+  "expected_summary_rows": 2880,
+  "actual_summary_rows": 2880,
+  "duplicate_keys": 0,
+  "nonfinite_required_metrics": 0,
+  "max_asymptotic_variance_identity_error": 1.3322676295501878e-15,
+  "max_corrected_variance_identity_error": 6.661338147750939e-16,
+  "max_log_coordinate_sigma_variance_spread": 0.0
+}
