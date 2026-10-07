@@ -2,6 +2,8 @@
 
 [![Lean build](https://github.com/pawelmalmyga-ai/EndpointCoordinate/actions/workflows/lean_action_ci.yml/badge.svg)](https://github.com/pawelmalmyga-ai/EndpointCoordinate/actions/workflows/lean_action_ci.yml)
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23221388.svg)](https://doi.org/10.5281/zenodo.23221388)
+
 Lean 4 formalization of an exponentially weighted endpoint coordinate for time
 series, its exact finite-path geometry, its log-odds transform, and selected
 probabilistic scaling results.
